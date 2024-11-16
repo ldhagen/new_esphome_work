@@ -1,0 +1,38 @@
+esphome:
+  name: sensor-node-4
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+  platform: esphome
+  password: "a3208430816657b90cc4faab9a66f121"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Sensor-Node-4 Fallback Hotspot"
+    password: "8rD3hXrrPPDO"
+    
+binary_sensor:
+  - platform: gpio
+    pin: 35
+    name: "PIR Sensor"
+    device_class: motion
+    
+web_server:
+  port: 80
+
+captive_portal:
+    

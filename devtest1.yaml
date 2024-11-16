@@ -1,0 +1,44 @@
+esphome:
+  name: devtest1
+  friendly_name: devtest1
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "71uojpSbM3sMGFeAR7u8cHCODgb23OaoywB/D91Mk1I="
+
+ota:
+  platform: esphome
+  password: "8190df9db16da2b96720333526e21dd7"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Devtest1 Fallback Hotspot"
+    password: "E0fNiiJU3XmI"
+
+esp32_ble_tracker:
+  scan_parameters:
+    interval: 1100ms
+    window: 1100ms
+    active: true
+
+bluetooth_proxy:
+  active: true
+
+web_server:
+  port: 80
+
+captive_portal:
+    

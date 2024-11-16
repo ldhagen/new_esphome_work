@@ -1,0 +1,31 @@
+esphome:
+  name: s3devkit3test2b
+  friendly_name: s3devkit3test2b
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "X/r4ogwSIavTWvDyc9Y2yeqPJ7XWu/YkJejurwhKPUg="
+
+ota:
+  password: "3bd357506bd0442622f72b7577a10569"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "S3Devkit3Test2B Fallback Hotspot"
+    password: "d6BkfV0x3F9k"
+
+captive_portal:
+    

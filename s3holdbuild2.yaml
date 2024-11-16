@@ -1,0 +1,35 @@
+esphome:
+  name: s3holdbuild2
+  friendly_name: s3holdbuild2
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "EiS9BRg8Y4C5MRqjNcC7f8EnuSarpOIbXIMtrQjXxA0="
+
+ota:
+  - platform: esphome
+    password: "dc06e4316da7617b3bc11c1861cf1259"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "S3Holdbuild2 Fallback Hotspot"
+    password: "Z82j7VudFTj0"
+
+web_server:
+  port: 80
+
+captive_portal:
+    

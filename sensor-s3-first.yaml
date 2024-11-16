@@ -1,0 +1,31 @@
+esphome:
+  name: sensor-s3-first
+  friendly_name: sensor-s3-first
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "YL0enJBSEp6S/31AYxc+o10EiWcA7WUoUnkOewOQ2jA="
+
+ota:
+  password: "afbf699c52ef2ab59baa2841993ba6a3"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Sensor-S3-First Fallback Hotspot"
+    password: "uleHHp7YCQSo"
+
+captive_portal:
+    

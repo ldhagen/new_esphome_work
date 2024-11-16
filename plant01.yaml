@@ -1,0 +1,62 @@
+esphome:
+  name: plant01
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+
+sensor:
+  - platform: adc
+    pin: 35
+    name: "Bathroom Plant Moisture"
+    attenuation: 11db
+    update_interval: 1h
+
+# Enable Home Assistant API
+api:
+
+ota:
+  password: "9daa1e23f1a63ce8195a61f9b565a580"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Plant01 Fallback Hotspot"
+    password: "l6JrlIw32ggh"
+
+    
+binary_sensor:
+  - platform: homeassistant
+    id: prevent_deep_sleep
+    entity_id: input_boolean.prevent_deep_sleep
+    
+
+switch:
+- platform: gpio
+  pin: GPIO2
+  id: blue_led
+  
+- platform: template
+  name: "Blue LED"
+  optimistic: yes
+  id: bluetemp
+  turn_on_action:
+  - switch.turn_on: blue_led
+  turn_off_action:
+  - switch.turn_off: blue_led
+
+
+
+
+
+captive_portal:
+    

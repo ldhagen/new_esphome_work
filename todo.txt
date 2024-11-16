@@ -1,0 +1,12 @@
+as of 2 Dec 22
+- Image analysis on esp32-cam (garbage bin movement detection) or other technique`
+- Create motion sensor to work with back deck light
+xxx  Build freeze high temp warning system and test by moving sensor out of freezer
+xxx  Alexa responses to queries about washer and dryer status
+xxx  4 cell battery pack for dryer mpu sensor  xxx
+xxx- Expose dryer mpu sensor state to Alexa for relible voice query xxx
+xxx- Publish battery pack level remotely xxx
+xxx- Deep sleep overnight for dryer mpu sensor xxx
+xxx- Remove credential secrets from other yaml files and add to this repository xxx
+xxx- Get esp32-cam running on 3.2 LiFePo batteries stepped up to 5v (for stability)xxx
+   ----3.2 works without transformer to 5----

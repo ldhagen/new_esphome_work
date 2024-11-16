@@ -1,0 +1,31 @@
+esphome:
+  name: sensor-s2-first
+  friendly_name: sensor-s2-first
+
+esp32:
+  board: esp32-s2-saola-1
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "EfJpJDmDmILdJmclVfBZvvFtM7eyyPyuKGZaVNXzNDo="
+
+ota:
+  password: "9b6456004fcb92917eda966e48c98892"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Sensor-S2-First Fallback Hotspot"
+    password: "K7cnq6hPXGVI"
+
+captive_portal:
+    

@@ -1,0 +1,49 @@
+esphome:
+  name: bedroom-sensor-1
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+  platform: esphome
+  password: "bebca7e1c42133c78b792feb559814eb"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Bedroom-Sensor-1"
+    password: "dbX9bgsSzZHo"
+i2c:
+  sda: 21
+  scl: 22
+  scan: true
+  id: bus_a
+  
+sensor:
+  - platform: aht10
+    temperature:
+      name: "Bedroom AHT10 Temperature"
+    humidity:
+      name: "Bedroom AHT10 Humidity"
+    update_interval: 60s
+
+  - platform: wifi_signal
+    name: "WiFi Signal Sensor"
+    update_interval: 60s
+
+web_server:
+  port: 80
+
+captive_portal:
+    

@@ -1,0 +1,175 @@
+esphome:
+  name: c3washer2
+  friendly_name: C3Washer2
+  on_boot:
+    then:
+       script.execute: consider_deep_sleep
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+    
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "CnzuXOA4GvzvOMpsgR4/T9fMLRG1UYz9UvKhVDtruMc="
+
+ota:
+  platform: esphome
+  password: "e6545bf099bec0e7a6060326f2fa0728"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "C3Washer2 Fallback Hotspot"
+    password: "WylYo348nWpQ"
+
+
+i2c:
+  sda: 6
+  scl: 7
+  scan: true
+  id: bus_a
+
+globals:
+  - id: washer_delta_accel_x
+    type: float
+  - id: washer_delta_accel_y
+    type: float
+  - id: washer_delta_accel_z
+    type: float
+
+# Deep Sleep
+
+deep_sleep:
+  id: deep_sleep_control
+ # run_duration:  1min
+  sleep_duration: 60min
+
+script:
+  - id: consider_deep_sleep
+    mode: queued
+    then:
+      - delay: 1min
+      - if:
+          condition:
+            binary_sensor.is_on: prevent_deep_sleep
+          then:
+            - logger.log: 'Skipping sleep, per prevent_deep_sleep'
+          else:
+            - deep_sleep.enter: deep_sleep_control
+      - script.execute: consider_deep_sleep
+      
+text_sensor:
+  - platform: template
+    icon: mdi:washer
+    name: Washer
+    id: washer
+    
+binary_sensor:
+  - platform: homeassistant
+    id: washer_status
+    entity_id: input_boolean.washer_status
+    
+  - platform: homeassistant
+    id: prevent_deep_sleep
+    entity_id: input_boolean.prevent_deep_sleep
+
+ 
+  - platform: template
+    device_class: vibration
+    name: "Washer Vibration"
+    id: washer_vibration
+    lambda: |-
+      if (isnan(id(washer_delta_accel_x)) or isnan(id(washer_delta_accel_y)) or isnan(id(washer_delta_accel_z))) {
+        id(washer).publish_state("Idle");
+        return {};
+      }
+      else if (abs(id(washer_delta_accel_x)) > 0.7 or abs(id(washer_delta_accel_y)) > 0.7 or abs(id(washer_delta_accel_z)) > 0.7) {
+        return(true);
+      } else {
+        return(false);
+      }
+    filters:
+      - delayed_on: 2sec
+      - delayed_off: 5min
+    on_press:
+      then:
+        - text_sensor.template.publish:
+            id: washer
+            state: Washing
+            
+    on_release:
+      then:
+        - text_sensor.template.publish:
+            id: washer
+            state: Idle
+
+
+sensor:
+  
+  - platform: wifi_signal
+    name: 
+      C3 Test 1 WiFi Signal Sensor"
+    update_interval: 60s
+
+  - platform: adc
+    pin: 1
+    name: "Washer Battery Volts"
+    id: washer_battery_volts
+    update_interval: 10min
+    attenuation: auto
+    accuracy_decimals: 3
+    internal: false
+
+  - platform: mpu6050
+    update_interval: 0.25s
+    address: 0x68
+    accel_x:
+      accuracy_decimals: 1
+      name: "Washer Accel X"
+      id: washer_accel_x
+      internal: true
+      filters:
+        - lambda: |-
+            id(washer_delta_accel_x) = fabsf(id(washer_accel_x).state - x);
+            return(x);
+    accel_y:
+      accuracy_decimals: 1
+      name: "Washer Accel Y"
+      id: washer_accel_y
+      internal: true
+      filters:
+        - lambda: |-
+            id(washer_delta_accel_y) = fabsf(id(washer_accel_y).state - x);
+            return(x);
+    accel_z:
+      accuracy_decimals: 1
+      name: "Washer Accel Z"
+      id: washer_accel_z
+      internal: true
+      filters:
+        - lambda: |-
+            id(washer_delta_accel_z) = fabsf(id(washer_accel_z).state - x);
+            return(x);
+    temperature:
+      name: "Washer Temperature"
+      filters:
+        - heartbeat: 60s
+        
+
+
+web_server:
+  port: 80
+
+
+captive_portal:
+    

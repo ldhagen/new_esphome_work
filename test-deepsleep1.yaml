@@ -1,0 +1,73 @@
+esphome:
+  name: test-deepsleep1
+  
+esp32:
+  board: esp32dev
+  
+  framework:
+    type: arduino
+ 
+    
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+#xxx
+
+ota:
+  password: "6bd671fc63f69e2cbe636d4f3875065b"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Test-Deepsleep1 Fallback Hotspot"
+    password: "ftxLnpthdz0T"
+
+sensor:
+  - platform: mpu6050
+    address: 0x68
+    accel_x:
+      name: "MPU6050 Accel X"
+    accel_y:
+      name: "MPU6050 Accel Y"
+    accel_z:
+      name: "MPU6050 Accel z"
+    gyro_x:
+      name: "MPU6050 Gyro X"
+    gyro_y:
+      name: "MPU6050 Gyro Y"
+    gyro_z:
+      name: "MPU6050 Gyro z"
+    temperature:
+      name: "MPU6050 Temperature"
+    update_interval: 1sec
+        
+
+
+i2c:
+  sda: 21
+  scl: 22
+  scan: true
+  id: bus_a
+
+
+
+   
+    
+
+switch:
+- platform: gpio
+  pin: GPIO2
+  id: blue_led
+  
+
+
+captive_portal:
+
+
+    

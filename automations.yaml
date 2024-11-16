@@ -1,0 +1,132 @@
+- id: '1653425353362'
+  alias: Dryer complete announce
+  description: ''
+  trigger:
+  - platform: state
+    entity_id:
+    - sensor.dryer
+    from: Drying
+    to: Idle
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  condition: []
+  action:
+  - service: notify.alexa_media
+    data:
+      message: Dryer finished
+      target: media_player.kitchen,media_player.living_room,media_player.bedroom
+      data:
+        type: tts
+  - service: input_boolean.turn_off
+    data: {}
+    target:
+      entity_id: input_boolean.dryer_status
+  mode: single
+- id: '1654186335792'
+  alias: Set Dryer Status State to On (off addressed in announcement)
+  description: ''
+  trigger:
+  - platform: state
+    entity_id:
+    - sensor.dryer
+    from: Idle
+    to: Drying
+    for:
+      hours: 0
+      minutes: 1
+      seconds: 0
+  condition: []
+  action:
+  - service: input_boolean.turn_on
+    data: {}
+    target:
+      entity_id: input_boolean.dryer_status
+  mode: single
+- id: '1654530129548'
+  alias: Set Washer Status State to On (off addressed in announcement)
+  description: ''
+  trigger:
+  - platform: state
+    entity_id:
+    - sensor.washer
+    from: Idle
+    to: Washing
+    for:
+      hours: 0
+      minutes: 1
+      seconds: 0
+  condition: []
+  action:
+  - service: input_boolean.turn_on
+    data: {}
+    target:
+      entity_id: input_boolean.washer_status
+  mode: single
+- id: '1654530333129'
+  alias: Washer complete announce
+  description: ''
+  trigger:
+  - platform: state
+    entity_id:
+    - sensor.washer
+    from: Washing
+    to: Idle
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  condition: []
+  action:
+  - service: notify.alexa_media
+    data:
+      message: Washer finished
+      target: media_player.kitchen,media_player.living_room,media_player.bedroom
+      data:
+        type: tts
+  - service: input_boolean.turn_off
+    data: {}
+    target:
+      entity_id: input_boolean.washer_status
+  mode: single
+- id: '1658876709828'
+  alias: PIR Pantry Light On
+  description: ''
+  trigger:
+  - type: motion
+    platform: device
+    device_id: ea828e9f38caad5d151680a15ddfd775
+    entity_id: binary_sensor.ttgo_pir_sensor
+    domain: binary_sensor
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 0
+  condition: []
+  action:
+  - type: turn_on
+    device_id: 52728ff54210985d008e0e77d0fc95f6
+    entity_id: switch.pantry_light
+    domain: switch
+  mode: single
+- id: '1658952471884'
+  alias: PIR Pantry Light Off
+  description: ''
+  trigger:
+  - type: no_motion
+    platform: device
+    device_id: ea828e9f38caad5d151680a15ddfd775
+    entity_id: binary_sensor.ttgo_pir_sensor
+    domain: binary_sensor
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 10
+  condition: []
+  action:
+  - type: turn_off
+    device_id: 52728ff54210985d008e0e77d0fc95f6
+    entity_id: switch.pantry_light
+    domain: switch
+  mode: single

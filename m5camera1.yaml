@@ -1,0 +1,41 @@
+esphome:
+  name: m5camera1
+  platform: ESP32
+  board: m5stack-core-esp32
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+  password: "39291a6bec1640cefeda3adbf00c4df4"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "M5Camera1 Fallback Hotspot"
+    password: "fOwQ5su92EEj"
+
+captive_portal:
+
+esp32_camera:
+  name: My Camera 2
+  external_clock:
+    pin: GPIO27
+    frequency: 20MHz
+  i2c_pins:
+    sda: GPIO22
+    scl: GPIO23
+  reset_pin: GPIO15
+  data_pins: [GPIO32, GPIO35, GPIO34, GPIO5, GPIO39, GPIO18, GPIO36, GPIO19]
+  vsync_pin: GPIO25
+  href_pin: GPIO26
+  pixel_clock_pin: GPIO21
+  resolution: 1600x1200
+  vertical_flip: false
+  horizontal_mirror: false

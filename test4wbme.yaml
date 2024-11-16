@@ -1,0 +1,31 @@
+esphome:
+  name: test4wbme
+  friendly_name: test4wbme
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "79FeQdf/fp8yl7K3zYedf++tu2xHqknCI31axf8S6aQ="
+
+ota:
+  password: "b00f87b130f3f16e88e0bf2e5f56ede3"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Test4Wbme Fallback Hotspot"
+    password: "XYd63JgAoH17"
+
+captive_portal:
+    

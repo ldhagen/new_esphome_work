@@ -1,0 +1,42 @@
+esphome:
+  name: devkitcv4test2
+  friendly_name: DevKitCV4Test2
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "rd1ti4bAAXrtYA9vGVlH8R7CTPUHQ8BGknGaUFpfKgE="
+
+ota:
+  password: "0b0f692c492685e0cff7f7b081f06369"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Devkitcv4Test2 Fallback Hotspot"
+    password: "XzjDGjiv4elE"
+
+sensor:
+  - platform: wifi_signal
+    name: 
+      devkitcv4test2 WiFi Signal Sensor"
+    update_interval: 60s
+
+
+web_server:
+  port: 80
+
+
+captive_portal:
+    

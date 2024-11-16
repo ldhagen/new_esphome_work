@@ -1,0 +1,47 @@
+esphome:
+  name: freezerrelay2
+  friendly_name: freezerrelay2
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "28m9cGHJKkZ1ZQsPBISucadSTdlyUU7yx7pbZAUYCyg="
+
+ota:
+  platform: esphome
+  password: "b84dbc4c090fd65ad19f71a3b632532c"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Freezerrelay2 Fallback Hotspot"
+    password: "NdA91pc3jrMN"
+
+
+esp32_ble_tracker:
+
+sensor:
+  - platform: inkbird_ibsth1_mini
+    mac_address: 49:42:08:00:53:6A
+    temperature:
+      name: "Inkbird IBS-TH1 Mini Temperature"
+    humidity:
+      name: "Inkbird IBS-TH1 Mini Humidity"
+    battery_level:
+      name: "Inkbird IBS-TH1 Mini Battery Level"
+
+web_server:
+  port: 80
+
+captive_portal:

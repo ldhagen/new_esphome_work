@@ -1,0 +1,50 @@
+esphome:
+  name: c3test1
+  friendly_name: C3Test1
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "Xkhr7JDipSu5h1NXSbk0mBD1mT71ZMwTyTT4G+3eL34="
+
+ota:
+  platform: esphome
+  password: "3c74f2ee7c93cfe1de3b73a5621a6e46"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "C3Test1 Fallback Hotspot"
+    password: "Fg1HJ43k19S0"
+
+sensor:
+  - platform: dht
+    pin: 3
+    temperature:
+      name: "Living Room Temperature"
+    humidity:
+      name: "Living Room Humidity"
+    update_interval: 60s
+
+  - platform: wifi_signal
+    name: 
+      C3 Test 1 WiFi Signal Sensor"
+    update_interval: 60s
+
+web_server:
+  port: 80
+
+
+captive_portal:
+    
