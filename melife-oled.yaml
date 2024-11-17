@@ -53,7 +53,10 @@ display:
       it.strftime(0, 45, id(font1), "%a %d %b %y",  id(esptime).now());
       if (id(inside_temperature).has_state()) {
         it.printf(0, 0, id(font1), "%.1f°", id(inside_temperature).state);
+        it.printf(70, 0, id(font1), "%.1f%%", id(inside_humidity).state);
         }
+
+  
       
 
 sensor:
@@ -64,7 +67,10 @@ sensor:
   - platform: homeassistant
     id: inside_temperature
     entity_id: sensor.first_air_quality_monitor_temperature
-    internal: true
+
+  - platform: homeassistant  
+    id: inside_humidity
+    entity_id: sensor.first_air_quality_monitor_humidity
   
 
 web_server:
