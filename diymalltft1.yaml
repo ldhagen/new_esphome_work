@@ -7,6 +7,8 @@ esp32:
   framework:
     type: arduino
 
+#from https://community.home-assistant.io/t/esp32-2432s028r-sunton-2-8-cyd-config/780600
+
 # Enable logging
 logger:
 
