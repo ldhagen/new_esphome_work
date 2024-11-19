@@ -1,11 +1,21 @@
+substitutions:
+
+  device_name: "diymalltft1"
+  friendly_name: "diymalltft1"
+  board_type: esp32dev
+  framework: esp-idf # arduino or esp-idf (recommended for ESP32)
+
+### END ###
+
 esphome:
-  name: diymalltft1
-  friendly_name: diymalltft1
+  name: ${device_name}
+  friendly_name: ${friendly_name}
 
 esp32:
-  board: esp32dev
+  board: ${board_type}
   framework:
-    type: arduino
+    type: ${framework}
+
 
 #from https://community.home-assistant.io/t/esp32-2432s028r-sunton-2-8-cyd-config/780600
 
@@ -29,6 +39,8 @@ wifi:
   ap:
     ssid: "Diymalltft1 Fallback Hotspot"
     password: "CBin8qPP3SLJ"
+
+captive_portal:
 
 i2c:
   - sda: 27
@@ -83,15 +95,6 @@ light:
     restore_mode: ALWAYS_OFF
 
 
-# sensor:
-#   - platform: adc
-#     pin: 34
-#     name: "Brightness"
-#     update_interval: 60s
-
-
-
-
 display:
   - id: main_display
     platform: ili9xxx
@@ -142,6 +145,16 @@ sensor:
   - platform: wifi_signal
     name: "DIYMall WiFi Signal Sensor"
     update_interval: 60s
+  
+  - platform: adc
+    pin: 34
+    name: "Ambient Light Level"
+    update_interval: 60s
 
-captive_portal:
-    
+ 
+# Restart & Safe Mode Buttons
+button:
+  - platform: restart
+    name: "Restart Device"
+  - platform: safe_mode
+    name: "Restart in Safe Mode"
