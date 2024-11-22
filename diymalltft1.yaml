@@ -21,7 +21,7 @@ esp32:
 
 # Enable logging
 logger:
-  level: VERBOSE
+
 
 # Enable Home Assistant API
 api:
@@ -135,6 +135,17 @@ touchscreen:
 
 lvgl:
   buffer_size: 25%
+  displays:
+    - main_display
+  touchscreens:
+    - main_touchscreen
+  pages:
+    - id: main_page
+      widgets:
+        - label:
+            align: CENTER
+            text: 'Lance Rules! Yes he does...'
+
 
 
 sensor:
