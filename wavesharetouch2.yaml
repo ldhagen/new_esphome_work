@@ -1,0 +1,69 @@
+esphome:
+  name: wavesharetouch2
+  friendly_name: wavesharetouch2
+
+esp32:
+  board: esp32s3box
+  framework:
+    type: esp-idf
+    version: 5.2.2
+    platform_version: 6.7.0
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "M+pj68JlKsXlPN6CoAYVv5XD2A0gr98lyEh6jTEGyHM="
+
+ota:
+  - platform: esphome
+    password: "f8305abcda66043e955d23d0cefcd524"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Wavesharetouch2 Fallback Hotspot"
+    password: "z0hiNnMHY6A1"
+
+psram:
+  mode: octal
+  speed: 80000000.0
+
+sensor:
+  - platform: wifi_signal
+    name: "WaveTouch2 WiFi Signal Sensor"
+    update_interval: 60s
+
+  - platform: homeassistant
+    id: inside_temperature
+    entity_id: sensor.first_air_quality_monitor_temperature
+
+  - platform: homeassistant  
+    id: inside_humidity
+    entity_id: sensor.first_air_quality_monitor_humidity
+
+  - platform: uptime
+    type: seconds
+    name: Uptime Sensor
+ 
+# Restart & Safe Mode Buttons
+button:
+  - platform: restart
+    name: "Restart Device"
+  - platform: safe_mode
+    name: "Restart in Safe Mode"
+
+
+web_server:
+  port: 80
+  include_internal: True
+  version: 2
+
+
+captive_portal:
+    
