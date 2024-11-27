@@ -1,0 +1,130 @@
+esphome:
+  name: wavesharetouch1
+  friendly_name: wavesharetouch1
+
+esp32:
+  board: esp32s3box
+  framework:
+    type: esp-idf
+    version: 5.2.2
+    platform_version: 6.7.0
+    
+  
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "GhDzPzQcLq3xg9LVDrpIolcR5wu5hg/cDJs7wk1vjqM="
+
+ota:
+  - platform: esphome
+    password: "cf6d2dd8038bcfc63c9f7c98c15adf17"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Wavesharetouch1 Fallback Hotspot"
+    password: "DC8eh1CHRnvt"
+
+psram:
+  mode: octal
+  speed: 80000000.0
+
+display:
+  - platform: rpi_dpi_rgb
+    id: main_display
+    auto_clear_enabled: false
+    color_order: RGB
+    pclk_frequency: 16MHz
+    dimensions:
+      width: 800
+      height: 480
+    de_pin:
+      number: 5
+    hsync_pin:
+      number: 46
+      ignore_strapping_warning: true
+    vsync_pin:
+      number: 3
+      ignore_strapping_warning: true
+    pclk_pin: 7
+    hsync_back_porch: 30
+    hsync_front_porch: 210
+    hsync_pulse_width: 30
+    vsync_back_porch: 4
+    vsync_front_porch: 4
+    vsync_pulse_width: 4
+    data_pins:
+      red:
+        - 1         #r3
+        - 2         #r4
+        - 42        #r5
+        - 41        #r6
+        - 40        #r7
+      blue:
+        - 14        #b3
+        - 38        #b4
+        - 18        #b5
+        - 17        #b6
+        - 10        #b7
+      green:
+        - 39        #g2
+        - 0         #g3
+        - 45        #g4
+        - 48        #g5
+        - 47        #g6
+        - 21        #g7
+
+lvgl:
+  buffer_size: 25%
+  displays:
+    - main_display
+# touchscreens:
+#  - main_touchscreen
+  pages:
+    - id: main_page
+      widgets:
+        - label:
+            align: CENTER
+            text: 'Lance Rules! Yes he does...'
+
+
+sensor:
+  - platform: wifi_signal
+    name: "Waveshare Touch WiFi Signal Sensor"
+    update_interval: 60s
+  
+
+  - platform: homeassistant
+    id: inside_temperature
+    entity_id: sensor.first_air_quality_monitor_temperature
+
+  - platform: homeassistant  
+    id: inside_humidity
+    entity_id: sensor.first_air_quality_monitor_humidity
+
+  - platform: uptime
+    type: seconds
+    name: Uptime Sensor
+ 
+# Restart & Safe Mode Buttons
+button:
+  - platform: restart
+    name: "Restart Device"
+  - platform: safe_mode
+    name: "Restart in Safe Mode"
+
+web_server:
+  port: 80
+  include_internal: True
+  version: 2
+    
+
+captive_portal:
+    
