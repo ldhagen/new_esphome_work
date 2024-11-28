@@ -80,7 +80,7 @@ display:
         - 48        #g5
         - 47        #g6
         - 21        #g7
-
+    show_test_card: True
 lvgl:
   buffer_size: 25%
   displays:

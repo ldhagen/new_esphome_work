@@ -109,6 +109,7 @@ display:
     invert_colors: false
     update_interval: never
     auto_clear_enabled: false
+    show_test_card: True
 
 touchscreen:
   - id: main_touchscreen
@@ -145,6 +146,8 @@ lvgl:
         - label:
             align: CENTER
             text: 'Lance Rules! Yes he does...'
+  
+
 
 
 

@@ -86,18 +86,6 @@ display:
 
     show_test_card: true
 
-    lambda: |-
-      auto black = Color(0, 0, 0);
-      auto red = Color(255, 0, 0);
-      auto green = Color(0, 255, 0);
-      auto blue = Color(0, 0, 255);
-      auto white = Color(255, 255, 255);
-      it.filled_circle(20, 32, 15, black);
-      it.filled_circle(40, 32, 15, red);
-      it.filled_circle(60, 32, 15, green);
-      it.filled_circle(80, 32, 15, blue);
-      it.filled_circle(100, 32, 15, white);
-
 touchscreen:
   platform: gt911
   id: touch0
@@ -114,6 +102,19 @@ light:
     output: backlight_pin
     name: "Backlight Level"
     restore_mode: RESTORE_DEFAULT_ON
+
+lvgl:
+  buffer_size: 25%
+  displays:
+    - disp0
+  touchscreens:
+    - touch0
+  pages:
+    - id: main_page
+      widgets:
+        - label:
+            align: CENTER
+            text: 'Lance Rules! Yes he does...'
 
 sensor:
   - platform: wifi_signal
