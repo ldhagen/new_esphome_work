@@ -1,6 +1,11 @@
 esphome:
   name: wavesharetouch2
   friendly_name: wavesharetouch2
+  platformio_options:
+    build_flags: "-DBOARD_HAS_PSRAM"
+    board_build.arduino.memory_type: qio_opi
+    board_build.flash_mode: dio
+    board_upload.maximum_ram_size: 524288
 
 esp32:
   board: esp32s3box
@@ -8,10 +13,7 @@ esp32:
     type: esp-idf
     version: 5.2.2
     platform_version: 6.7.0
-
-# Enable logging
-logger:
-
+    
 # Enable Home Assistant API
 api:
   encryption:
@@ -30,9 +32,181 @@ wifi:
     ssid: "Wavesharetouch2 Fallback Hotspot"
     password: "z0hiNnMHY6A1"
 
+external_components:
+  - source: github://pr#6363
+    refresh: 0min
+    components: [lvgl]
+
 psram:
   mode: octal
-  speed: 80000000.0
+  speed: 80MHz
+
+# Enable logging
+logger:
+  level: DEBUG
+
+i2c:
+  sda: GPIO08
+  scl: GPIO09
+  scan: True
+  id: bus_a
+
+display:
+  - platform: rpi_dpi_rgb
+    id: my_display
+    auto_clear_enabled: false
+    update_interval: never
+    color_order: RGB
+    pclk_frequency: 14MHz
+    dimensions:
+      width: 800
+      height: 480
+    de_pin:
+      number: 5
+    hsync_pin:
+      number: 46
+      ignore_strapping_warning: true
+    vsync_pin:
+      number: 3
+      ignore_strapping_warning: true
+    pclk_pin: 7
+    pclk_inverted: false
+    hsync_back_porch: 10 #30
+    hsync_front_porch: 20 #210 
+    hsync_pulse_width: 10 #30
+    vsync_back_porch: 10 #4
+    vsync_front_porch: 10 #4
+    vsync_pulse_width: 10 #4
+    data_pins:
+      red:
+        - 1         #r3
+        - 2         #r4
+        - 42        #r5
+        - 41        #r6
+        - 40        #r7
+      blue:
+        - 14        #b3
+        - 38        #b4
+        - 18        #b5
+        - 17        #b6
+        - 10        #b7
+      green:
+        - 39        #g2
+        - 0         #g3
+        - 45        #g4
+        - 48        #g5
+        - 47        #g6
+        - 21        #g7
+
+font:
+  - file: "RobotoCondensed-Regular.ttf"
+    id: chu_nano
+    size: 12
+
+touchscreen:
+  platform: gt911
+  id: my_touch
+  interrupt_pin: GPIO4
+  on_touch:
+    - lambda: |-
+          ESP_LOGI("cal", "x=%d, y=%d, x_raw=%d, y_raw=%0d",
+              touch.x,
+              touch.y,
+              touch.x_raw,
+              touch.y_raw
+              );
+
+lvgl:
+  displays:
+    - display_id: my_display
+  buffer_size: 25%
+  pages:
+    - id: clock_page
+      widgets:
+        - obj: # Clock container
+            height: size_content
+            width: 800 #240
+            align: CENTER
+            pad_all: 0
+            border_width: 0
+            bg_color: 0xFFFFFF
+            widgets:
+              - meter: # Clock face
+                  height: 400 #220
+                  width: 400 #220
+                  align: center
+                  bg_opa: TRANSP
+                  text_color: 0x000000
+                  scales:
+                    - ticks: # minutes scale
+                        width: 1
+                        count: 61
+                        length: 10
+                        color: 0x000000
+                      range_from: 0
+                      range_to: 60
+                      angle_range: 360
+                      rotation: 270
+                      indicators:
+                        - line:
+                            id: minute_hand
+                            width: 3
+                            color: 0xa6a6a6
+                            r_mod: -4
+                            value: 0
+                    - ticks: # hours scale
+                        width: 1
+                        count: 12
+                        length: 1
+                        major:
+                          stride: 1
+                          width: 4
+                          length: 8
+                          color: 0xC0C0C0
+                          label_gap: 12
+                      angle_range: 330
+                      rotation: 300
+                      range_from: 1
+                      range_to: 12
+                    - indicators:
+                        - line:
+                            id: hour_hand
+                            width: 5
+                            color: 0xa6a6a6
+                            r_mod: -30
+                            value: 0
+                      angle_range: 360
+                      rotation: 270
+                      range_from: 0
+                      range_to: 720
+
+time:
+  - platform: homeassistant
+    id: time_comp
+
+interval:
+  - interval: 30s
+    then:
+      if:
+        condition:
+          time.has_time:
+        then:
+          - script.execute: time_update
+
+script:
+  - id: time_update
+    then:
+      - lvgl.indicator.update:
+          id: minute_hand
+          value: !lambda |-
+            return id(time_comp).now().minute;
+      - lvgl.indicator.update:
+          id: hour_hand
+          value: !lambda |-
+            auto now = id(time_comp).now();
+            return std::fmod(now.hour, 12) * 60 + now.minute;
+
+
 
 sensor:
   - platform: wifi_signal
