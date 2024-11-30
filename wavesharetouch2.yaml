@@ -204,10 +204,12 @@ script:
           id: hour_hand
           value: !lambda |-
             auto now = id(time_comp).now();
-            return std::fmod(now.hour, 12) * 60 + now.minute;
+            return std::fmod(now.hour, 12) * 10 + now.minute;
 
-
-
+text_sensor:
+  - platform: homeassistant
+    id: current_time_sensor
+    entity_id: sensor.date_time
 sensor:
   - platform: wifi_signal
     name: "WaveTouch2 WiFi Signal Sensor"
@@ -236,7 +238,7 @@ button:
 web_server:
   port: 80
   include_internal: True
-  version: 2
+  version: 3
 
 
 captive_portal:
