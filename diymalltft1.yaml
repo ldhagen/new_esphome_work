@@ -202,8 +202,8 @@ lvgl:
                     lvgl.page.next:
   
   theme:
-    label:
-      text_font: roboto24 # set all your labels to use your custom defined font
+#    label:
+#     text_font: roboto24 # set all your labels to use your custom defined font
     button:
       bg_color: 0x2F8CD8
       bg_grad_color: 0x005782
@@ -233,7 +233,7 @@ lvgl:
         border_color: 0x0077b3
         border_width: 1
         text_color: 0xFFFFFF
-        text_font: roboto24
+#        text_font: roboto24
         pressed:
           bg_color: 0x006699
           bg_grad_color: 0x00334d
