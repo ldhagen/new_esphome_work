@@ -84,7 +84,7 @@ display:
       width: 800
       height: 480
 
-    show_test_card: true
+        #    show_test_card: true
 
 touchscreen:
   platform: gt911
@@ -115,6 +115,32 @@ lvgl:
         - label:
             align: CENTER
             text: 'Lance Rules! Yes he does...'
+        - button:
+            x: 10
+            y: 10
+            width: 70
+            height: 30
+            id: btn_id
+            checkable: true
+            widgets:
+             - label:
+                align: center
+                text: "Light"
+  theme:
+    arc:
+      scroll_on_focus: true
+    slider:
+      scroll_on_focus: true
+    button:
+      scroll_on_focus: true
+      border_width: 2
+      outline_pad: 6
+      pressed:
+        border_color: 0xFF0000
+      checked:
+        border_color: 0xFFFF00
+      focused:
+        border_color: 0x00FF00
 
 sensor:
   - platform: wifi_signal
