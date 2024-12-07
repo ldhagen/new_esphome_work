@@ -158,7 +158,11 @@ sensor:
   - platform: uptime
     type: seconds
     name: Uptime Sensor
- 
+
+text_sensor:
+  - platform: version
+    name: "ESPHome Version" 
+
 # Restart & Safe Mode Buttons
 button:
   - platform: restart
