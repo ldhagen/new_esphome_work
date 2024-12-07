@@ -4,7 +4,8 @@ esphome:
 esp32:
   board: esp32dev
   framework:
-    type: arduino
+    type: esp-idf
+    
 
 time:
   - platform: homeassistant
@@ -15,6 +16,9 @@ logger:
 
 # Enable Home Assistant API
 api:
+  encryption:
+    key: "TTnz82t3lKyFJXjxYDR2bZdGXFayj2dg/MVSaBjj4S0="
+
 
 ota:
   platform: esphome
@@ -61,7 +65,7 @@ display:
 
 sensor:
   - platform: wifi_signal
-    name: "esp32camtest1 WiFi Signal Sensor"
+    name: "melife-oled WiFi Signal Sensor"
     update_interval: 60s
 
   - platform: homeassistant
@@ -72,9 +76,25 @@ sensor:
     id: inside_humidity
     entity_id: sensor.first_air_quality_monitor_humidity
   
+  - platform: uptime
+    type: seconds
+    name: Uptime Sensor
+
+text_sensor:
+  - platform: version
+    name: "ESPHome Version" 
+
+ 
+# Restart & Safe Mode Buttons
+button:
+  - platform: restart
+    name: "Restart Device"
+  - platform: safe_mode
+    name: "Restart in Safe Mode"  
 
 web_server:
   port: 80
+  include_internal: True
 
 
 captive_portal:
