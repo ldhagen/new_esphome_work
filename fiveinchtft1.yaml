@@ -15,6 +15,11 @@ psram:
 
 # Enable logging
 logger:
+  level: debug 
+
+debug:
+  update_interval: 60s
+
 
 # Enable Home Assistant API
 api:
@@ -40,7 +45,7 @@ i2c:
 
 display:
   - platform: rpi_dpi_rgb
-    id: disp0
+    id: main_display
     data_pins:
       red:
         - 45
@@ -89,7 +94,7 @@ display:
 touchscreen:
   platform: gt911
   id: touch0
-  display: disp0
+  display: main_display
   interrupt_pin: 10
 
 output:
@@ -103,49 +108,174 @@ light:
     name: "Backlight Level"
     restore_mode: RESTORE_DEFAULT_ON
 
+
 lvgl:
   buffer_size: 25%
   displays:
-    - disp0
-  touchscreens:
-    - touch0
+    - main_display
   pages:
     - id: main_page
       widgets:
-        - label:
-            align: CENTER
-            text: 'Lance Rules! Yes he does...'
-        - button:
-            x: 10
-            y: 10
-            width: 70
-            height: 30
-            id: btn_id
-            checkable: true
+        - obj:
+            align: TOP_MID
+            styles: header_footer
             widgets:
-             - label:
-                align: center
-                text: "Light"
+              - label:
+                  text: "ESPHome LVGL Display"
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: 0xFFFFFF
+    - id: second_page
+      widgets:
+        - obj:
+            align: TOP_MID
+            styles: header_footer
+            widgets:
+              - label:
+                  text: "A second page"
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: 0xFFFFF
+  top_layer:
+    widgets:
+      - buttonmatrix:
+          align: bottom_mid
+          styles: header_footer
+          pad_all: 0
+          outline_width: 0
+          id: top_layer
+          items:
+            styles: header_footer
+          rows:
+            - buttons:
+              - id: page_prev
+                text: "\uF053"
+                on_press:
+                  then:
+                    lvgl.page.previous:
+              - id: page_home
+                text: "\uF015"
+                on_press:
+                  then:
+                    lvgl.page.show: main_page
+              - id: page_next
+                text: "\uF054"
+                on_press:
+                  then:
+                    lvgl.page.next:
+  
+  
   theme:
-    arc:
-      scroll_on_focus: true
-    slider:
-      scroll_on_focus: true
     button:
-      scroll_on_focus: true
-      border_width: 2
-      outline_pad: 6
-      pressed:
-        border_color: 0xFF0000
+      bg_color: 0x2F8CD8
+      bg_grad_color: 0x005782
+      bg_grad_dir: VER
+      bg_opa: COVER
+      border_color: 0x0077b3
+      border_width: 1
+      text_color: 0xFFFFFF
+      pressed: # set some button colors to be different in pressed state
+        bg_color: 0x006699
+        bg_grad_color: 0x00334d
+      checked: # set some button colors to be different in checked state
+        bg_color: 0x1d5f96
+        bg_grad_color: 0x03324A
+        text_color: 0xfff300
+    buttonmatrix:
+      bg_opa: TRANSP
+      border_color: 0x0077b3
+      border_width: 0
+      text_color: 0xFFFFFF
+      pad_all: 0
+      items: # set all your buttonmatrix buttons to use your custom defined styles and font
+        bg_color: 0x2F8CD8
+        bg_grad_color: 0x005782
+        bg_grad_dir: VER
+        bg_opa: COVER
+        border_color: 0x0077b3
+        border_width: 1
+        text_color: 0xFFFFFF
+        pressed:
+          bg_color: 0x006699
+          bg_grad_color: 0x00334d
+        checked:
+          bg_color: 0x1d5f96
+          bg_grad_color: 0x03324A
+          text_color: 0x005580
+    switch:
+      bg_color: 0xC0C0C0
+      bg_grad_color: 0xb0b0b0
+      bg_grad_dir: VER
+      bg_opa: COVER
       checked:
-        border_color: 0xFFFF00
-      focused:
-        border_color: 0x00FF00
+        bg_color: 0x1d5f96
+        bg_grad_color: 0x03324A
+        bg_grad_dir: VER
+        bg_opa: COVER
+      knob:
+        bg_color: 0xFFFFFF
+        bg_grad_color: 0xC0C0C0
+        bg_grad_dir: VER
+        bg_opa: COVER
+    slider:
+      border_width: 1
+      border_opa: 15%
+      bg_color: 0xcccaca
+      bg_opa: 15%
+      indicator:
+        bg_color: 0x1d5f96
+        bg_grad_color: 0x03324A
+        bg_grad_dir: VER
+        bg_opa: COVER
+      knob:
+        bg_color: 0x2F8CD8
+        bg_grad_color: 0x005782
+        bg_grad_dir: VER
+        bg_opa: COVER
+        border_color: 0x0077b3
+        border_width: 1
+        text_color: 0xFFFFFF
+  style_definitions:
+    - id: header_footer
+      bg_color: 0x2F8CD8
+      bg_grad_color: 0x005782
+      bg_grad_dir: VER
+      bg_opa: COVER
+      border_opa: TRANSP
+      radius: 0
+      pad_all: 0
+      pad_row: 0
+      pad_column: 0
+      border_color: 0x0077b3
+      text_color: 0xFFFFFF
+      width: 100%
+      height: 30
+
+
+image:
+  - file: https://esphome.io/_static/logo-text-on-light.svg
+    id: boot_logo
+    type: RGB565
+    resize: 470x95
+    use_transparency: true
+
+
+text_sensor:
+  - platform: debug
+    device:
+      name: "Device Info"
+    reset_reason:
+      name: "Reset Reason"
+  - platform: version
+    name: "ESPHome Version" 
+
+
 
 sensor:
   - platform: wifi_signal
-    name: "FiveInchTFT WiFi Signal Sensor"
+    name: "Five Touch WiFi Signal Sensor"
     update_interval: 60s
+  
 
   - platform: homeassistant
     id: inside_temperature
@@ -158,10 +288,18 @@ sensor:
   - platform: uptime
     type: seconds
     name: Uptime Sensor
-
-text_sensor:
-  - platform: version
-    name: "ESPHome Version" 
+  
+  - platform: debug
+    free:
+      name: "Heap Free"
+    block:
+      name: "Heap Max Block"
+    loop_time:
+      name: "Loop Time"
+    psram:
+      name: "Free PSRAM"
+ 
+ 
 
 # Restart & Safe Mode Buttons
 button:
@@ -170,11 +308,12 @@ button:
   - platform: safe_mode
     name: "Restart in Safe Mode"
 
-
 web_server:
   port: 80
   include_internal: True
   version: 3
+    
 
 captive_portal:
     
+
