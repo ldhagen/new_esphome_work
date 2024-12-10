@@ -1,17 +1,25 @@
+#https://devices.esphome.io/devices/Elecrow-5inch-ESP32-display#advanced-configuration-using-lgvl-graphics-library
+
 esphome:
   name: fiveinchtft1
   friendly_name: fiveinchtft1
+  platformio_options:
+    board_build.esp-idf.memory_type: qio_opi
+    board_build.flash_mode: dio
 
 esp32:
   board: esp32-s3-devkitc-1
   framework:
     type: esp-idf
-    version: 5.2.2
-    platform_version: 6.7.0
+    sdkconfig_options:
+      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: y
+      CONFIG_ESP32S3_DATA_CACHE_64KB: y
+      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: y
+      CONFIG_SPIRAM_RODATA: y
 
 psram:
   mode: octal
-  speed: 80000000.0    
+  speed: 80MHz
 
 # Enable logging
 logger:
@@ -38,227 +46,212 @@ wifi:
   ap:
     ssid: "Fiveinchtft1 Fallback Hotspot"
     password: "3Ps5BAJqCVne"
-i2c:
-  sda: 19
-  scl: 20
-  scan: true
+
+
+# Define a PWM output on the ESP32
+output:
+  - platform: ledc
+    pin: 2
+    frequency: 1220
+    id: gpio_backlight_pwm
+
+light:
+  - platform: monochromatic # Define a monochromatic, dimmable light for the backlight
+    output: gpio_backlight_pwm
+    name: ${device_name} Display Backlight
+    id: back_light
+    restore_mode: ALWAYS_ON
 
 display:
   - platform: rpi_dpi_rgb
     id: main_display
-    data_pins:
-      red:
-        - 45
-        - 48
-        - 47
-        - 21
-        - 14
-      green:
-        - 5
-        - 6
-        - 7
-        - 15
-        - 16 
-        - 4
-      blue:
-        - 8
-        - 3
-        - 46
-        - 9
-        - 1
+    color_order: RGB
+    invert_colors: True
+    update_interval: never
+    auto_clear_enabled: false # takes 2.8 seconds to clear the display
+    dimensions:
+      width: 800
+      height: 480
     de_pin: 40
     hsync_pin: 39
     vsync_pin: 41
     pclk_pin: 0
+    pclk_frequency: 12MHz
+    data_pins:
+      red:
+        - 45        #r1
+        - 48        #r2
+        - 47        #r3
+        - 21        #r4
+        - 14        #r5
+      green:
+        - 5         #g0
+        - 6         #g1
+        - 7         #g2
+        - 15        #g3
+        - 16        #g4
+        - 4         #g5
+      blue:
+        - 8         #b1
+        - 3         #b2
+        - 46        #b3
+        - 9         #b4
+        - 1         #b5
 
-    hsync_front_porch: 210
-    hsync_pulse_width: 4
-    hsync_back_porch: 43
-    vsync_front_porch: 22
-    vsync_pulse_width: 4
-    vsync_back_porch: 12
-
-    pclk_inverted: true
-    pclk_frequency: 6500000
-
-    color_order: RGB
-
-    auto_clear_enabled: false
-    update_interval: 5s
-    dimensions:
-      width: 800
-      height: 480
-
-        #    show_test_card: true
+i2c:
+  sda: GPIO19
+  scl: GPIO20
+  scan: true
 
 touchscreen:
   platform: gt911
-  id: touch0
-  display: main_display
-  interrupt_pin: 10
 
-output:
-  - platform: ledc
-    pin: 2
-    id: backlight_pin
+globals:
+  - id: random_int_var
+    type: int
+    restore_value: no
+    initial_value: '0'
 
-light:
-  - platform: monochromatic
-    output: backlight_pin
-    name: "Backlight Level"
-    restore_mode: RESTORE_DEFAULT_ON
-
+binary_sensor:
+  - platform: lvgl
+    widget: btn1
+    name: btn1
+    on_press: # genrate a random number between -10 and +10 and update meter
+      then:
+        - lambda: |-
+            id(random_int_var) = (rand() % 20) - 10;
+        - lvgl.indicator.update:
+            id: power_meter_input
+            value: !lambda return id(random_int_var);
+        - lvgl.label.update:
+            id: power_kw
+            text:
+              format: "%dkW"
+              args: [ 'id(random_int_var)' ]
+image:
+  - file: mdi:sun-wireless-outline
+    id: solar_power_icon
+    resize: 50x50
 
 lvgl:
-  buffer_size: 25%
-  displays:
-    - main_display
-  pages:
-    - id: main_page
-      widgets:
-        - obj:
-            align: TOP_MID
-            styles: header_footer
-            widgets:
-              - label:
-                  text: "ESPHome LVGL Display"
-                  align: CENTER
-                  text_align: CENTER
-                  text_color: 0xFFFFFF
-    - id: second_page
-      widgets:
-        - obj:
-            align: TOP_MID
-            styles: header_footer
-            widgets:
-              - label:
-                  text: "A second page"
-                  align: CENTER
-                  text_align: CENTER
-                  text_color: 0xFFFFF
-  top_layer:
-    widgets:
-      - buttonmatrix:
-          align: bottom_mid
-          styles: header_footer
-          pad_all: 0
-          outline_width: 0
-          id: top_layer
-          items:
-            styles: header_footer
-          rows:
-            - buttons:
-              - id: page_prev
-                text: "\uF053"
-                on_press:
-                  then:
-                    lvgl.page.previous:
-              - id: page_home
-                text: "\uF015"
-                on_press:
-                  then:
-                    lvgl.page.show: main_page
-              - id: page_next
-                text: "\uF054"
-                on_press:
-                  then:
-                    lvgl.page.next:
-  
-  
-  theme:
-    button:
-      bg_color: 0x2F8CD8
-      bg_grad_color: 0x005782
-      bg_grad_dir: VER
-      bg_opa: COVER
-      border_color: 0x0077b3
-      border_width: 1
-      text_color: 0xFFFFFF
-      pressed: # set some button colors to be different in pressed state
-        bg_color: 0x006699
-        bg_grad_color: 0x00334d
-      checked: # set some button colors to be different in checked state
-        bg_color: 0x1d5f96
-        bg_grad_color: 0x03324A
-        text_color: 0xfff300
-    buttonmatrix:
-      bg_opa: TRANSP
-      border_color: 0x0077b3
-      border_width: 0
-      text_color: 0xFFFFFF
-      pad_all: 0
-      items: # set all your buttonmatrix buttons to use your custom defined styles and font
-        bg_color: 0x2F8CD8
-        bg_grad_color: 0x005782
-        bg_grad_dir: VER
-        bg_opa: COVER
-        border_color: 0x0077b3
-        border_width: 1
-        text_color: 0xFFFFFF
-        pressed:
-          bg_color: 0x006699
-          bg_grad_color: 0x00334d
-        checked:
-          bg_color: 0x1d5f96
-          bg_grad_color: 0x03324A
-          text_color: 0x005580
-    switch:
-      bg_color: 0xC0C0C0
-      bg_grad_color: 0xb0b0b0
-      bg_grad_dir: VER
-      bg_opa: COVER
-      checked:
-        bg_color: 0x1d5f96
-        bg_grad_color: 0x03324A
-        bg_grad_dir: VER
-        bg_opa: COVER
-      knob:
-        bg_color: 0xFFFFFF
-        bg_grad_color: 0xC0C0C0
-        bg_grad_dir: VER
-        bg_opa: COVER
-    slider:
-      border_width: 1
-      border_opa: 15%
-      bg_color: 0xcccaca
-      bg_opa: 15%
-      indicator:
-        bg_color: 0x1d5f96
-        bg_grad_color: 0x03324A
-        bg_grad_dir: VER
-        bg_opa: COVER
-      knob:
-        bg_color: 0x2F8CD8
-        bg_grad_color: 0x005782
-        bg_grad_dir: VER
-        bg_opa: COVER
-        border_color: 0x0077b3
-        border_width: 1
-        text_color: 0xFFFFFF
+  color_depth: 16
+  bg_color: 0
+  border_width: 0
+  outline_width: 0
+  shadow_width: 0
+  text_font: unscii_16
+  align: center
   style_definitions:
-    - id: header_footer
-      bg_color: 0x2F8CD8
-      bg_grad_color: 0x005782
-      bg_grad_dir: VER
-      bg_opa: COVER
-      border_opa: TRANSP
-      radius: 0
-      pad_all: 0
-      pad_row: 0
-      pad_column: 0
-      border_color: 0x0077b3
+    - id: meter_style
+      border_width: 0
+      outline_width: 0
+      align: center
+      bg_color: 0
+    - id: title_style
+      text_font: MONTSERRAT_40
+      align: center
       text_color: 0xFFFFFF
-      width: 100%
-      height: 30
-
-
-image:
-  - file: https://esphome.io/_static/logo-text-on-light.svg
-    id: boot_logo
-    type: RGB565
-    resize: 470x95
-    use_transparency: true
-
+      bg_opa: TRANSP
+      bg_color: 0
+      radius: 4
+      pad_all: 2
+    - id: detail_style
+      text_font: MONTSERRAT_18
+      align: center
+      text_color: 0xFFFFFF
+      bg_opa: TRANSP
+      bg_color: 0
+      radius: 4
+      pad_all: 2
+  widgets:
+    - button: # Button
+        id: btn1
+        height: 100
+        width: 200
+        x: 20
+        y: 20
+        border_width: 0
+        outline_width: 0
+        align: TOP_LEFT
+        checkable: false
+        widgets:
+        - label:
+            align: center
+            text: "Button"
+    - obj: # Meter
+        height: 240
+        width: 240
+        bg_color: 0
+        border_width: 0
+        outline_width: 0
+        shadow_width: 0
+        pad_all: 4
+        align: TOP_MID
+        widgets:
+          - meter: # Gradient color  arc
+              height: 100%
+              width: 100%
+              border_width: 0
+              outline_width: 0
+              align: center
+              bg_color: 0
+              scales:
+                angle_range: 180
+                range_to: 10
+                range_from: -10
+                ticks:
+                  count: 0
+                indicators:
+                  - line:
+                      id: power_meter_input
+                      width: 8
+                      color: 0xFFFFFF
+                      r_mod: 12
+                      value: 50
+                  - arc:
+                      color: 0xFF3000
+                      r_mod: 10
+                      width: 20
+                      start_value: -10
+                      end_value: 0
+                  - arc:
+                      color: 0x00FF00
+                      r_mod: 10
+                      width: 20
+                      start_value: 0
+                      end_value: 10
+          - arc: # black arc to erase middle part of meter indicator line
+              height: 160
+              width: 160
+              align: center
+              arc_color: 0x000000
+              arc_width: 150
+              start_angle: 0
+              end_angle: 360
+              indicator:
+                arc_width: 150
+                arc_color: 0x000000
+          - label: # gauge lower and higher range indicators
+              styles: detail_style
+              y: 8
+              x: -99
+              text: "-10"
+          - label:
+              styles: detail_style
+              y: 8
+              x: 99
+              text: "+10"
+          - label:  # value label
+              styles: title_style
+              id: power_kw
+              y: -10
+          - image:
+              src: solar_power_icon
+              id: img_solar_power
+              align: center
+              image_recolor: 0xFFFF00
+              image_recolor_opa: 100%
+              y: 50
 
 text_sensor:
   - platform: debug
@@ -267,7 +260,7 @@ text_sensor:
     reset_reason:
       name: "Reset Reason"
   - platform: version
-    name: "ESPHome Version" 
+    name: "ESPHome Version"
 
 
 
@@ -275,20 +268,20 @@ sensor:
   - platform: wifi_signal
     name: "Five Touch WiFi Signal Sensor"
     update_interval: 60s
-  
+
 
   - platform: homeassistant
     id: inside_temperature
     entity_id: sensor.first_air_quality_monitor_temperature
 
-  - platform: homeassistant  
+  - platform: homeassistant
     id: inside_humidity
     entity_id: sensor.first_air_quality_monitor_humidity
 
   - platform: uptime
     type: seconds
     name: Uptime Sensor
-  
+
   - platform: debug
     free:
       name: "Heap Free"
@@ -298,8 +291,8 @@ sensor:
       name: "Loop Time"
     psram:
       name: "Free PSRAM"
- 
- 
+
+
 
 # Restart & Safe Mode Buttons
 button:
@@ -312,8 +305,6 @@ web_server:
   port: 80
   include_internal: True
   version: 3
-    
+
 
 captive_portal:
-    
-
