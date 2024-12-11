@@ -98,6 +98,7 @@ display:
         - 9         #b4
         - 1         #b5
 
+
 i2c:
   sda: GPIO19
   scl: GPIO20
@@ -105,33 +106,8 @@ i2c:
 
 touchscreen:
   platform: gt911
+  id: main_touchscreen
 
-globals:
-  - id: random_int_var
-    type: int
-    restore_value: no
-    initial_value: '0'
-
-binary_sensor:
-  - platform: lvgl
-    widget: btn1
-    name: btn1
-    on_press: # genrate a random number between -10 and +10 and update meter
-      then:
-        - lambda: |-
-            id(random_int_var) = (rand() % 20) - 10;
-        - lvgl.indicator.update:
-            id: power_meter_input
-            value: !lambda return id(random_int_var);
-        - lvgl.label.update:
-            id: power_kw
-            text:
-              format: "%dkW"
-              args: [ 'id(random_int_var)' ]
-image:
-  - file: mdi:sun-wireless-outline
-    id: solar_power_icon
-    resize: 50x50
 
 lvgl:
   color_depth: 16
@@ -163,104 +139,56 @@ lvgl:
       bg_color: 0
       radius: 4
       pad_all: 2
-  widgets:
-    - button: # Button
-        id: btn1
-        height: 100
-        width: 200
-        x: 20
-        y: 20
-        border_width: 0
-        outline_width: 0
-        align: TOP_LEFT
-        checkable: false
+  pages:
+      - id: meter_page
         widgets:
-        - label:
-            align: center
-            text: "Button"
-    - obj: # Meter
-        height: 240
-        width: 240
-        bg_color: 0
-        border_width: 0
-        outline_width: 0
-        shadow_width: 0
-        pad_all: 4
-        align: TOP_MID
-        widgets:
-          - meter: # Gradient color  arc
-              height: 100%
-              width: 100%
-              border_width: 0
-              outline_width: 0
-              align: center
-              bg_color: 0
+          - meter:
+              align: CENTER
+              height: 350
+              width: 350
               scales:
-                angle_range: 180
-                range_to: 10
-                range_from: -10
-                ticks:
-                  count: 0
-                indicators:
-                  - line:
-                      id: power_meter_input
-                      width: 8
-                      color: 0xFFFFFF
-                      r_mod: 12
-                      value: 50
-                  - arc:
-                      color: 0xFF3000
-                      r_mod: 10
-                      width: 20
-                      start_value: -10
-                      end_value: 0
-                  - arc:
-                      color: 0x00FF00
-                      r_mod: 10
-                      width: 20
-                      start_value: 0
-                      end_value: 10
-          - arc: # black arc to erase middle part of meter indicator line
-              height: 160
-              width: 160
-              align: center
-              arc_color: 0x000000
-              arc_width: 150
-              start_angle: 0
-              end_angle: 360
-              indicator:
-                arc_width: 150
-                arc_color: 0x000000
-          - label: # gauge lower and higher range indicators
-              styles: detail_style
-              y: 8
-              x: -99
-              text: "-10"
-          - label:
-              styles: detail_style
-              y: 8
-              x: 99
-              text: "+10"
-          - label:  # value label
-              styles: title_style
-              id: power_kw
-              y: -10
-          - image:
-              src: solar_power_icon
-              id: img_solar_power
-              align: center
-              image_recolor: 0xFFFF00
-              image_recolor_opa: 100%
-              y: 50
+                - range_from: 00 # scale for the needle value
+                  range_to: 1000
+                  angle_range: 240
+                  rotation: 150
+                  indicators:
+                    - line:
+                        id: temperature_needle
+                        width: 2
+                        color: 0xFF0000
+                        r_mod: -4
+                    - tick_style:
+                        start_value: 0
+                        end_value: 100
+                        color_start: 0x0000bd
+                        color_end: 0xbd0000
+                        width: 1
+                - range_from: 0 # scale for the value labels
+                  range_to: 100
+                  angle_range: 240
+                  rotation: 150
+                  ticks:
+                    width: 1
+                    count: 51
+                    length: 10
+                    color: 0x000000
+                    major:
+                      stride: 5
+                      width: 2
+                      length: 10
+                      color: 0x404040
+                      label_gap: 10
+              widgets:
+                - label:
+                    id: temperature_text
+                    text: "-.- F"
+                    align: CENTER
+                    y: 45
+                - label:
+                    text: "Indoor"
+                    align: CENTER
+                    y: 65
 
-text_sensor:
-  - platform: debug
-    device:
-      name: "Device Info"
-    reset_reason:
-      name: "Reset Reason"
-  - platform: version
-    name: "ESPHome Version"
 
 
 
@@ -273,6 +201,15 @@ sensor:
   - platform: homeassistant
     id: inside_temperature
     entity_id: sensor.first_air_quality_monitor_temperature
+    on_value:
+      - lvgl.indicator.update:
+          id: temperature_needle
+          value: !lambda return x * 10;
+      - lvgl.label.update:
+          id: temperature_text
+          text:
+            format: "%.1f°F"
+            args: [ 'x' ]
 
   - platform: homeassistant
     id: inside_humidity
@@ -280,31 +217,4 @@ sensor:
 
   - platform: uptime
     type: seconds
-    name: Uptime Sensor
-
-  - platform: debug
-    free:
-      name: "Heap Free"
-    block:
-      name: "Heap Max Block"
-    loop_time:
-      name: "Loop Time"
-    psram:
-      name: "Free PSRAM"
-
-
-
-# Restart & Safe Mode Buttons
-button:
-  - platform: restart
-    name: "Restart Device"
-  - platform: safe_mode
-    name: "Restart in Safe Mode"
-
-web_server:
-  port: 80
-  include_internal: True
-  version: 3
-
-
-captive_portal:
+    name: Uptime Sensor    
