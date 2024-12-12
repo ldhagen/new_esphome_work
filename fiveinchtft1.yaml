@@ -143,7 +143,7 @@ lvgl:
       - id: meter_page
         widgets:
           - meter:
-              align: CENTER
+              align: LEFT_MID
               height: 350
               width: 350
               scales:
@@ -185,7 +185,55 @@ lvgl:
                     align: CENTER
                     y: 45
                 - label:
-                    text: "Indoor"
+                    text: "Temperature"
+                    align: CENTER
+                    y: 65
+          
+
+          - meter:
+              align: RIGHT_MID
+              height: 350
+              width: 350
+              scales:
+                - range_from: 00 # scale for the needle value
+                  range_to: 1000
+                  angle_range: 240
+                  rotation: 150
+                  indicators:
+                    - line:
+                        id: humidity_needle
+                        width: 2
+                        color: 0xFF0000
+                        r_mod: -4
+                    - tick_style:
+                        start_value: 0
+                        end_value: 100
+                        color_start: 0x0000bd
+                        color_end: 0xbd0000
+                        width: 1
+                - range_from: 0 # scale for the value labels
+                  range_to: 100
+                  angle_range: 240
+                  rotation: 150
+                  ticks:
+                    width: 1
+                    count: 51
+                    length: 10
+                    color: 0x000000
+                    major:
+                      stride: 5
+                      width: 2
+                      length: 10
+                      color: 0x404040
+                      label_gap: 10
+              widgets:
+                - label:
+                    id: humidity_text
+                    text: "-.- %"
+                    align: CENTER
+                    y: 45
+                - label:
+                    text: "Humidity"
                     align: CENTER
                     y: 65
 
@@ -211,10 +259,47 @@ sensor:
             format: "%.1f°F"
             args: [ 'x' ]
 
+
   - platform: homeassistant
     id: inside_humidity
     entity_id: sensor.first_air_quality_monitor_humidity
+    on_value:
+      - lvgl.indicator.update:
+          id: humidity_needle
+          value: !lambda return x * 10;
+      - lvgl.label.update:
+          id: humidity_text
+          text:
+            format: "%.1f%%"
+            args: [ 'x' ]
 
   - platform: uptime
     type: seconds
     name: Uptime Sensor    
+  
+  - platform: debug
+    free:
+      name: "Heap Free"
+    block:
+      name: "Heap Max Block"
+    loop_time:
+      name: "Loop Time"
+    psram:
+      name: "Free PSRAM"
+    
+    
+    
+# Restart & Safe Mode Buttons
+button:
+  - platform: restart
+    name: "Restart Device"
+  - platform: safe_mode
+    name: "Restart in Safe Mode"
+
+web_server:
+  port: 80
+  include_internal: True
+  version: 3
+
+  
+captive_portal:
