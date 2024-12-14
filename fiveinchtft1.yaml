@@ -185,7 +185,7 @@ lvgl:
                     align: CENTER
                     y: 45
                 - label:
-                    text: "Temperature"
+                    text: "Temp"
                     align: CENTER
                     y: 65
           

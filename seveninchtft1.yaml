@@ -89,6 +89,132 @@ light:
     gamma_correct: 1.8
 
 lvgl:
+  color_depth: 16
+  bg_color: 0
+  border_width: 0
+  outline_width: 0
+  shadow_width: 0
+  text_font: unscii_16
+  align: center
+  style_definitions:
+    - id: meter_style
+      border_width: 0
+      outline_width: 0
+      align: center
+      bg_color: 0
+    - id: title_style
+      text_font: MONTSERRAT_40
+      align: center
+      text_color: 0xFFFFFF
+      bg_opa: TRANSP
+      bg_color: 0
+      radius: 4
+      pad_all: 2
+    - id: detail_style
+      text_font: MONTSERRAT_18
+      align: center
+      text_color: 0xFFFFFF
+      bg_opa: TRANSP
+      bg_color: 0
+      radius: 4
+      pad_all: 2
+  pages:
+      - id: meter_page
+        widgets:
+          - meter:
+              align: LEFT_MID
+              height: 350
+              width: 350
+              scales:
+                - range_from: 00 # scale for the needle value
+                  range_to: 1000
+                  angle_range: 240
+                  rotation: 150
+                  indicators:
+                    - line:
+                        id: temperature_needle
+                        width: 2
+                        color: 0xFF0000
+                        r_mod: -4
+                    - tick_style:
+                        start_value: 0
+                        end_value: 100
+                        color_start: 0x0000bd
+                        color_end: 0xbd0000
+                        width: 1
+                - range_from: 0 # scale for the value labels
+                  range_to: 100
+                  angle_range: 240
+                  rotation: 150
+                  ticks:
+                    width: 1
+                    count: 51
+                    length: 10
+                    color: 0x000000
+                    major:
+                      stride: 5
+                      width: 2
+                      length: 10
+                      color: 0x404040
+                      label_gap: 10
+              widgets:
+                - label:
+                    id: temperature_text
+                    text: "-.- F"
+                    align: CENTER
+                    y: 45
+                - label:
+                    text: "Temp"
+                    align: CENTER
+                    y: 65
+
+
+          - meter:
+              align: RIGHT_MID
+              height: 350
+              width: 350
+              scales:
+                - range_from: 00 # scale for the needle value
+                  range_to: 1000
+                  angle_range: 240
+                  rotation: 150
+                  indicators:
+                    - line:
+                        id: humidity_needle
+                        width: 2
+                        color: 0xFF0000
+                        r_mod: -4
+                    - tick_style:
+                        start_value: 0
+                        end_value: 100
+                        color_start: 0x0000bd
+                        color_end: 0xbd0000
+                        width: 1
+                - range_from: 0 # scale for the value labels
+                  range_to: 100
+                  angle_range: 240
+                  rotation: 150
+                  ticks:
+                    width: 1
+                    count: 51
+                    length: 10
+                    color: 0x000000
+                    major:
+                      stride: 5
+                      width: 2
+                      length: 10
+                      color: 0x404040
+                      label_gap: 10
+              widgets:
+                - label:
+                    id: humidity_text
+                    text: "-.- %"
+                    align: CENTER
+                    y: 45
+                - label:
+                    text: "Humidity"
+                    align: CENTER
+                    y: 65
 
 
 sensor:
@@ -99,10 +225,29 @@ sensor:
   - platform: homeassistant
     id: inside_temperature
     entity_id: sensor.first_air_quality_monitor_temperature
+    on_value:
+      - lvgl.indicator.update:
+          id: temperature_needle
+          value: !lambda return x * 10;
+      - lvgl.label.update:
+          id: temperature_text
+          text:
+            format: "%.1f°F"
+            args: [ 'x' ]
+
 
   - platform: homeassistant  
     id: inside_humidity
     entity_id: sensor.first_air_quality_monitor_humidity
+    on_value:
+      - lvgl.indicator.update:
+          id: humidity_needle
+          value: !lambda return x * 10;
+      - lvgl.label.update:
+          id: humidity_text
+          text:
+            format: "%.1f%%"
+            args: [ 'x' ]
   
   - platform: uptime
     type: seconds
