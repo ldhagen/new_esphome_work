@@ -9,29 +9,6 @@ esp32:
 # Bluetooth Tracker          
 esp32_ble_tracker:
 
-sensor:
-  - platform: dht
-    pin: GPIO23
-    temperature:
-      name: "Garage Temperature"
-    humidity:
-      name: "Garage Humidity"
-    update_interval: 60s
-
-  - platform: inkbird_ibsth1_mini
-    mac_address: 49:42:08:00:53:6A
-    temperature:
-      name: "Inkbird IBS-TH1 Mini Temperature"
-    humidity:
-      name: "Inkbird IBS-TH1 Mini Humidity"
-    battery_level:
-      name: "Inkbird IBS-TH1 Mini Battery Level"
-
-  - platform: wifi_signal
-    name: "Garage WiFi Signal Sensor"
-    update_interval: 60s
-
-
 # Enable logging
 logger:
 
@@ -54,9 +31,41 @@ wifi:
     ssid: "Sensor-Node-2 Fallback Hotspot"
     password: "Y151Wm0ZnS9c"
 
+sensor:
+  - platform: dht
+    pin: GPIO23
+    temperature:
+      name: "Garage Temperature"
+    humidity:
+      name: "Garage Humidity"
+    update_interval: 60s
+
+  - platform: inkbird_ibsth1_mini
+    mac_address: 49:42:08:00:53:6A
+    temperature:
+      name: "Inkbird IBS-TH1 Mini Temperature"
+    humidity:
+      name: "Inkbird IBS-TH1 Mini Humidity"
+    battery_level:
+      name: "Inkbird IBS-TH1 Mini Battery Level"
+
+  - platform: wifi_signal
+    name: "Garage WiFi Signal Sensor"
+    update_interval: 60s
+
+  - platform: uptime
+    type: seconds
+    name: "Uptime Sensor"
+ 
+# Restart & Safe Mode Buttons
+button:
+  - platform: restart
+    name: "Restart Device"
+  - platform: safe_mode
+    name: "Restart in Safe Mode"
 
 web_server:
   port: 80
-
+  version: 3
 
 captive_portal:
