@@ -205,6 +205,61 @@ lvgl:
 
   page_wrap: true
 
+  top_layer:
+    widgets:
+      - obj:
+          id: boot_screen
+          layout:
+            type: flex
+            flex_flow: COLUMN_WRAP
+          width: 480px
+          height: 480px
+          text_font: roboto24
+          scrollbar_mode: 'off'
+          bg_color: White
+          bg_opa: COVER
+          radius: 0
+          pad_all: 5
+          widgets:
+            - image:
+                src: boot_logo
+                pad_bottom: 10
+            - label:
+                id: ip_address_label
+                text: "IP Address:"
+            - label:
+                text: "MAC Address:"
+            - label:
+                id: connected_ssid_label
+                text: "Connected SSID:"
+            - label:
+                id: wifi_signal_db_percent_label
+                text: "WiFi Strength: 0%"
+            - label:
+                text:
+                  format: "ESPHome Version: %s"
+                  args: [ 'id(esphome_version).state.c_str()' ]
+            - obj:
+               radius: 0
+               pad_all: 0
+               border_width: 0
+               width: 470px
+               flex_grow: 1
+               widgets:
+                 - button:
+                    align: bottom_right
+                    radius: 15
+                    width: 100
+                    height: 60
+                    checkable: true
+                    widgets:
+                     - label:
+                         text_color: White
+                         align: center
+                         text: "OK"
+                    on_press:
+                     - lvgl.widget.hide: boot_screen
+
   pages:
     - id: main_page
       width: 100%
