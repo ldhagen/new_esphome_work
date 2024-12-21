@@ -2,11 +2,10 @@ esphome:
   name: wavesharetouch1
   friendly_name: wavesharetouch1
   platformio_options:
-    # see https://community.home-assistant.io/t/esp32-with-esp-idf-framework-running-into-a-boot-loop/567305/11
-    board_build.flash_mode: dio
-
-    # see https://community.home-assistant.io/t/esp32-s3-devkitc-1-n16r8-using-psram-howto/652601
     build_flags: "-DBOARD_HAS_PSRAM"
+    board_build.arduino.memory_type: qio_opi
+    board_build.flash_mode: dio
+    board_upload.maximum_ram_size: 524288
 
 esp32:
   board: esp32s3box
@@ -15,14 +14,6 @@ esp32:
     version: 5.2.2
     platform_version: 6.7.0
     
-  
-
-# Enable logging
-logger:
-  level: debug 
-
-debug:
-  update_interval: 60s
 
 # Enable Home Assistant API
 api:
@@ -42,16 +33,35 @@ wifi:
     ssid: "Wavesharetouch1 Fallback Hotspot"
     password: "DC8eh1CHRnvt"
 
+packages:
+  common_files:
+    url: https://github.com/agillis/esphome-configs
+    ref: main # optional
+    files: [modules/common/color.yaml,
+            modules/common/fonts.yaml]
+
+
 psram:
   mode: octal
-  speed: 80000000.0
+  speed: 80MHz
+
+# Enable logging
+logger:
+  level: DEBUG
+
+i2c:
+  sda: GPIO08
+  scl: GPIO09
+  scan: True
+  id: bus_a
 
 display:
   - platform: rpi_dpi_rgb
-    id: main_display
+    id: my_display
     auto_clear_enabled: false
+    update_interval: never
     color_order: RGB
-    pclk_frequency: 16MHz
+    pclk_frequency: 14MHz
     dimensions:
       width: 800
       height: 480
@@ -64,12 +74,13 @@ display:
       number: 3
       ignore_strapping_warning: true
     pclk_pin: 7
-    hsync_back_porch: 30
-    hsync_front_porch: 210
-    hsync_pulse_width: 30
-    vsync_back_porch: 4
-    vsync_front_porch: 4
-    vsync_pulse_width: 4
+    pclk_inverted: false
+    hsync_back_porch: 10 #30
+    hsync_front_porch: 20 #210 
+    hsync_pulse_width: 10 #30
+    vsync_back_porch: 10 #4
+    vsync_front_porch: 10 #4
+    vsync_pulse_width: 10 #4
     data_pins:
       red:
         - 1         #r3
@@ -91,13 +102,28 @@ display:
         - 47        #g6
         - 21        #g7
     show_test_card: True
+
+touchscreen:
+  platform: gt911
+  id: my_touchscreen
+  interrupt_pin: GPIO4
+  on_touch:
+    - lambda: |-
+          ESP_LOGI("cal", "x=%d, y=%d, x_raw=%d, y_raw=%0d",
+              touch.x,
+              touch.y,
+              touch.x_raw,
+              touch.y_raw
+              );
+
 lvgl:
   buffer_size: 25%
-  displays:
-    - main_display
   pages:
     - id: main_page
       widgets:
+        - label:
+            align: CENTER
+            text: 'Lance Rules! Yes he does...'
         - obj:
             align: TOP_MID
             styles: header_footer
@@ -233,50 +259,24 @@ lvgl:
       width: 100%
       height: 30
 
-i2c:
-  sda: GPIO08
-  scl: GPIO09
-  scan: True
-  id: bus_a
-
-
-touchscreen:
-  platform: gt911
-  id: my_touchscreen
-  interrupt_pin: GPIO4
-  on_touch:
-    - lambda: |-
-          ESP_LOGI("cal", "x=%d, y=%d, x_raw=%d, y_raw=%0d",
-              touch.x,
-              touch.y,
-              touch.x_raw,
-              touch.y_raw
-              );
-
-
-
-image:
-  - file: https://esphome.io/_static/logo-text-on-light.svg
-    id: boot_logo
-    type: RGB565
-    resize: 470x95
-    use_transparency: true
-
-
 text_sensor:
-  - platform: debug
-    device:
-      name: "Device Info"
-    reset_reason:
-      name: "Reset Reason"
   - platform: version
-    name: "ESPHome Version" 
+    id: esphome_version
+    name: "ESPHome Version"
+  - platform: template
+    name: 'Last Restart'
+    id: device_last_restart
+    icon: mdi:clock
+    entity_category: diagnostic
 
-
+binary_sensor:
+  - platform: status
+    name: "Status"
+    entity_category: diagnostic
 
 sensor:
   - platform: wifi_signal
-    name: "Waveshare Touch WiFi Signal Sensor"
+    name: "Waveshare1 Touch WiFi Signal Sensor"
     update_interval: 60s
   
 
@@ -291,19 +291,7 @@ sensor:
   - platform: uptime
     type: seconds
     name: Uptime Sensor
-  
-  - platform: debug
-    free:
-      name: "Heap Free"
-    block:
-      name: "Heap Max Block"
-    loop_time:
-      name: "Loop Time"
-    psram:
-      name: "Free PSRAM"
  
- 
-
 # Restart & Safe Mode Buttons
 button:
   - platform: restart
@@ -314,7 +302,7 @@ button:
 web_server:
   port: 80
   include_internal: True
-  version: 3
+  version: 2
     
 
 captive_portal:
