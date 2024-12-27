@@ -1,5 +1,3 @@
-#https://github.com/agillis/esphome-configs/blob/main/SDL-lvgl_elegant_clock.yaml
-
 esphome:
   name: wavesharetouch2
   friendly_name: wavesharetouch2
@@ -34,6 +32,7 @@ wifi:
     ssid: "Wavesharetouch2 Fallback Hotspot"
     password: "z0hiNnMHY6A1"
 
+
 packages:
   common_files:
     url: https://github.com/agillis/esphome-configs
@@ -55,6 +54,43 @@ i2c:
   scl: GPIO09
   scan: True
   id: bus_a
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+    timezone: America/Chicago
+    on_time_sync:
+      - script.execute: time_update
+      - if:
+          condition:
+            lambda: 'return id(device_last_restart).state == "";'
+          then:
+            - text_sensor.template.publish:
+                id: device_last_restart
+                state: !lambda 'return id(homeassistant_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'
+
+    # Update the clock every second
+    on_time:
+      - seconds: "*"
+        then:
+          - script.execute: time_update
+
+script:
+  - id: time_update
+    then:
+      - lvgl.indicator.update:
+          id: second_hand
+          value: !lambda |-
+            return id(homeassistant_time).now().second;
+      - lvgl.indicator.update:
+          id: minute_hand
+          value: !lambda |-
+            return id(homeassistant_time).now().minute;
+      - lvgl.indicator.update:
+          id: hour_hand
+          value: !lambda |-
+            auto now = id(homeassistant_time).now();
+            return std::fmod(now.hour + 60, 12) * 60 + now.minute;
 
 display:
   - platform: rpi_dpi_rgb
@@ -102,11 +138,7 @@ display:
         - 48        #g5
         - 47        #g6
         - 21        #g7
-
-#font:
-#  - file: "RobotoCondensed-Regular.ttf"
-#    id: chu_nano
-#    size: 12
+    show_test_card: True
 
 touchscreen:
   platform: gt911
@@ -121,147 +153,123 @@ touchscreen:
               touch.y_raw
               );
 
-time:
-  - platform: homeassistant
-    id: homeassistant_time
-    timezone: America/Chicago
-    on_time_sync:
-      - script.execute: time_update
-      - if:
-          condition:
-            lambda: 'return id(device_last_restart).state == "";'
-          then:
-            - text_sensor.template.publish:
-                id: device_last_restart
-                state: !lambda 'return id(homeassistant_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'
-
-    # Update the clock every second
-    on_time:
-      - seconds: "*"
-        then:
-          - script.execute: time_update
-
-script:
-  - id: time_update
-    then:
-      - lvgl.indicator.update:
-          id: second_hand
-          value: !lambda |-
-            return id(homeassistant_time).now().second;
-      - lvgl.indicator.update:
-          id: minute_hand
-          value: !lambda |-
-            return id(homeassistant_time).now().minute;
-      - lvgl.indicator.update:
-          id: hour_hand
-          value: !lambda |-
-            auto now = id(homeassistant_time).now();
-            return std::fmod(now.hour + 60, 12) * 60 + now.minute;
-
-text_sensor:
-  - platform: version
-    id: esphome_version
-    name: "ESPHome Version"
-  - platform: template
-    name: 'Last Restart'
-    id: device_last_restart
-    icon: mdi:clock
-    entity_category: diagnostic
-
-binary_sensor:
-  - platform: status
-    name: "Status"
-    entity_category: diagnostic
-
-# -------------------------------------------
-# LVGL Buttons
-# -------------------------------------------
 lvgl:
-  displays:
-    - my_display
-  touchscreens:
-    - my_touchscreen
-
-  style_definitions:
-    - id: no_checked_color
-      bg_color: 0xCC5E14
-      text_color: 0xB6B6B6
-
-
-  theme:
-    button:
-      text_font: roboto24
-      scroll_on_focus: true
-      radius: 25px
-      width: 150px
-      height: 109px
-      pad_all: 10px
-      shadow_width: 0 # This is required even though the default is suposed to be 0
-      bg_color: 0x313131
-      text_color: 0xB6B6B6
-      checked:
-        bg_color: 0xCC5E14
-        text_color: 0xB6B6B6
-
-  page_wrap: true
-
-  top_layer:
-    widgets:
-      - obj:
-          id: boot_screen
-          layout:
-            type: flex
-            flex_flow: COLUMN_WRAP
-          width: 480px
-          height: 480px
-          text_font: roboto24
-          scrollbar_mode: 'off'
-          bg_color: White
-          bg_opa: COVER
-          radius: 0
-          pad_all: 5
-          widgets:
-            - image:
-                src: boot_logo
-                pad_bottom: 10
-            - label:
-                id: ip_address_label
-                text: "IP Address:"
-            - label:
-                text: "MAC Address:"
-            - label:
-                id: connected_ssid_label
-                text: "Connected SSID:"
-            - label:
-                id: wifi_signal_db_percent_label
-                text: "WiFi Strength: 0%"
-            - label:
-                text:
-                  format: "ESPHome Version: %s"
-                  args: [ 'id(esphome_version).state.c_str()' ]
-            - obj:
-               radius: 0
-               pad_all: 0
-               border_width: 0
-               width: 470px
-               flex_grow: 1
-               widgets:
-                 - button:
-                    align: bottom_right
-                    radius: 15
-                    width: 100
-                    height: 60
-                    checkable: true
-                    widgets:
-                     - label:
-                         text_color: White
-                         align: center
-                         text: "OK"
-                    on_press:
-                     - lvgl.widget.hide: boot_screen
-
+  buffer_size: 25%
   pages:
     - id: main_page
+      widgets:
+        - label:
+            align: CENTER
+            text: 'Lance Rules! Yes he does...'
+        - obj:
+            align: TOP_MID
+            styles: header_footer
+            widgets:
+              - label:
+                  text: "ESPHome LVGL Display"
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: 0xFFFFFF
+    
+
+    - id: meter_page
+      widgets:
+          - meter:
+              align: LEFT_MID
+              height: 350
+              width: 350
+              scales:
+                - range_from: 00 # scale for the needle value
+                  range_to: 1000
+                  angle_range: 240
+                  rotation: 150
+                  indicators:
+                    - line:
+                        id: temperature_needle
+                        width: 2
+                        color: 0xFF0000
+                        r_mod: -4
+                    - tick_style:
+                        start_value: 0
+                        end_value: 100
+                        color_start: 0x0000bd
+                        color_end: 0xbd0000
+                        width: 1
+                - range_from: 0 # scale for the value labels
+                  range_to: 100
+                  angle_range: 240
+                  rotation: 150
+                  ticks:
+                    width: 1
+                    count: 51
+                    length: 10
+                    color: 0x000000
+                    major:
+                      stride: 5
+                      width: 2
+                      length: 10
+                      color: 0x404040
+                      label_gap: 10
+              widgets:
+                - label:
+                    id: temperature_text
+                    text: "-.- F"
+                    align: CENTER
+                    y: 45
+                - label:
+                    text: "Temp"
+                    align: CENTER
+                    y: 65
+          
+
+          - meter:
+              align: RIGHT_MID
+              height: 350
+              width: 350
+              scales:
+                - range_from: 00 # scale for the needle value
+                  range_to: 1000
+                  angle_range: 240
+                  rotation: 150
+                  indicators:
+                    - line:
+                        id: humidity_needle
+                        width: 2
+                        color: 0xFF0000
+                        r_mod: -4
+                    - tick_style:
+                        start_value: 0
+                        end_value: 100
+                        color_start: 0x0000bd
+                        color_end: 0xbd0000
+                        width: 1
+                - range_from: 0 # scale for the value labels
+                  range_to: 100
+                  angle_range: 240
+                  rotation: 150
+                  ticks:
+                    width: 1
+                    count: 51
+                    length: 10
+                    color: 0x000000
+                    major:
+                      stride: 5
+                      width: 2
+                      length: 10
+                      color: 0x404040
+                      label_gap: 10
+              widgets:
+                - label:
+                    id: humidity_text
+                    text: "-.- %"
+                    align: CENTER
+                    y: 45
+                - label:
+                    text: "Humidity"
+                    align: CENTER
+                    y: 65
+
+    - id: clock_page
       width: 100%
       bg_color: Black
       widgets:
@@ -334,32 +342,177 @@ lvgl:
                             color: Red
                             r_mod: -10
 
-# -------------------------------------------
-# Graphics and Fonts
-# -------------------------------------------
-image:
-  - file: https://esphome.io/_static/logo-text-on-light.svg
-    id: boot_logo
-    type: RGB565
-    resize: 470x95
-    use_transparency: true
+
+  top_layer:
+    widgets:
+      - buttonmatrix:
+          align: bottom_mid
+          styles: header_footer
+          pad_all: 0
+          outline_width: 0
+          id: top_layer
+          items:
+            styles: header_footer
+          rows:
+            - buttons:
+              - id: page_prev
+                text: "\uF053"
+                on_press:
+                  then:
+                    lvgl.page.previous:
+              - id: page_home
+                text: "\uF015"
+                on_press:
+                  then:
+                    lvgl.page.show: main_page
+              - id: page_next
+                text: "\uF054"
+                on_press:
+                  then:
+                    lvgl.page.next:
+  
+  
+  theme:
+    button:
+      bg_color: 0x2F8CD8
+      bg_grad_color: 0x005782
+      bg_grad_dir: VER
+      bg_opa: COVER
+      border_color: 0x0077b3
+      border_width: 1
+      text_color: 0xFFFFFF
+      pressed: # set some button colors to be different in pressed state
+        bg_color: 0x006699
+        bg_grad_color: 0x00334d
+      checked: # set some button colors to be different in checked state
+        bg_color: 0x1d5f96
+        bg_grad_color: 0x03324A
+        text_color: 0xfff300
+    buttonmatrix:
+      bg_opa: TRANSP
+      border_color: 0x0077b3
+      border_width: 0
+      text_color: 0xFFFFFF
+      pad_all: 0
+      items: # set all your buttonmatrix buttons to use your custom defined styles and font
+        bg_color: 0x2F8CD8
+        bg_grad_color: 0x005782
+        bg_grad_dir: VER
+        bg_opa: COVER
+        border_color: 0x0077b3
+        border_width: 1
+        text_color: 0xFFFFFF
+        pressed:
+          bg_color: 0x006699
+          bg_grad_color: 0x00334d
+        checked:
+          bg_color: 0x1d5f96
+          bg_grad_color: 0x03324A
+          text_color: 0x005580
+    switch:
+      bg_color: 0xC0C0C0
+      bg_grad_color: 0xb0b0b0
+      bg_grad_dir: VER
+      bg_opa: COVER
+      checked:
+        bg_color: 0x1d5f96
+        bg_grad_color: 0x03324A
+        bg_grad_dir: VER
+        bg_opa: COVER
+      knob:
+        bg_color: 0xFFFFFF
+        bg_grad_color: 0xC0C0C0
+        bg_grad_dir: VER
+        bg_opa: COVER
+    slider:
+      border_width: 1
+      border_opa: 15%
+      bg_color: 0xcccaca
+      bg_opa: 15%
+      indicator:
+        bg_color: 0x1d5f96
+        bg_grad_color: 0x03324A
+        bg_grad_dir: VER
+        bg_opa: COVER
+      knob:
+        bg_color: 0x2F8CD8
+        bg_grad_color: 0x005782
+        bg_grad_dir: VER
+        bg_opa: COVER
+        border_color: 0x0077b3
+        border_width: 1
+        text_color: 0xFFFFFF
+  style_definitions:
+    - id: header_footer
+      bg_color: 0x2F8CD8
+      bg_grad_color: 0x005782
+      bg_grad_dir: VER
+      bg_opa: COVER
+      border_opa: TRANSP
+      radius: 0
+      pad_all: 0
+      pad_row: 0
+      pad_column: 0
+      border_color: 0x0077b3
+      text_color: 0xFFFFFF
+      width: 100%
+      height: 30
+
+text_sensor:
+  - platform: version
+    id: esphome_version
+    name: "ESPHome Version"
+  - platform: template
+    name: 'Last Restart'
+    id: device_last_restart
+    icon: mdi:clock
+    entity_category: diagnostic
+
+binary_sensor:
+  - platform: status
+    name: "Status"
+    entity_category: diagnostic
 
 sensor:
   - platform: wifi_signal
-    name: "WaveTouch2 WiFi Signal Sensor"
+    name: "Waveshare2 Touch WiFi Signal Sensor"
     update_interval: 60s
-
+ 
   - platform: homeassistant
     id: inside_temperature
     entity_id: sensor.first_air_quality_monitor_temperature
+    on_value:
+      - lvgl.indicator.update:
+          id: temperature_needle
+          value: !lambda return x * 10;
+      - lvgl.label.update:
+          id: temperature_text
+          text:
+            format: "%.1f°F"
+            args: [ 'x' ]
 
-  - platform: homeassistant  
+
+  - platform: homeassistant
     id: inside_humidity
     entity_id: sensor.first_air_quality_monitor_humidity
+    on_value:
+      - lvgl.indicator.update:
+          id: humidity_needle
+          value: !lambda return x * 10;
+      - lvgl.label.update:
+          id: humidity_text
+          text:
+            format: "%.1f%%"
+            args: [ 'x' ]
 
   - platform: uptime
     type: seconds
     name: Uptime Sensor
+
+  - platform: homeassistant
+    id: barometer_pressure
+    entity_id: sensor.devtest2_bme280_pressure_devtest2
+
  
 # Restart & Safe Mode Buttons
 button:
@@ -368,12 +521,11 @@ button:
   - platform: safe_mode
     name: "Restart in Safe Mode"
 
-
 web_server:
   port: 80
   include_internal: True
   version: 3
-
+    
 
 captive_portal:
     
