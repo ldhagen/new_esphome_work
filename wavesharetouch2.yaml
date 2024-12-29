@@ -511,9 +511,13 @@ sensor:
 
   - platform: homeassistant
     id: barometer_pressure
-    entity_id: sensor.devtest2_bme280_pressure_devtest2
+    entity_id: sensor.current_barometer
 
  
+  - platform: homeassistant
+    id: current_temperature
+    entity_id: sensor.current_temperature
+
 # Restart & Safe Mode Buttons
 button:
   - platform: restart
