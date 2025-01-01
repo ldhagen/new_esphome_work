@@ -172,7 +172,7 @@ lvgl:
                   text_color: 0xFFFFFF
     
 
-    - id: meter_page
+    - id: meter_page_1
       widgets:
           - meter:
               align: LEFT_MID
@@ -217,7 +217,7 @@ lvgl:
                     align: CENTER
                     y: 45
                 - label:
-                    text: "Temp"
+                    text: "Inside Temp"
                     align: CENTER
                     y: 65
           
@@ -265,9 +265,129 @@ lvgl:
                     align: CENTER
                     y: 45
                 - label:
-                    text: "Humidity"
+                    text: "Inside Humidity"
                     align: CENTER
                     y: 65
+
+
+
+
+
+
+
+
+    - id: meter_page_2
+      widgets:
+          - meter:
+              align: LEFT_MID
+              height: 350
+              width: 350
+              scales:
+                - range_from: 00 # scale for the needle value
+                  range_to: 1000
+                  angle_range: 240
+                  rotation: 150
+                  indicators:
+                    - line:
+                        id: temperature_needle_2
+                        width: 2
+                        color: 0xFF0000
+                        r_mod: -4
+                    - tick_style:
+                        start_value: 0
+                        end_value: 100
+                        color_start: 0x0000bd
+                        color_end: 0xbd0000
+                        width: 1
+                - range_from: 0 # scale for the value labels
+                  range_to: 100
+                  angle_range: 240
+                  rotation: 150
+                  ticks:
+                    width: 1
+                    count: 51
+                    length: 10
+                    color: 0x000000
+                    major:
+                      stride: 5
+                      width: 2
+                      length: 10
+                      color: 0x404040
+                      label_gap: 10
+              widgets:
+                - label:
+                    id: temperature_text_2
+                    text: "-.- F"
+                    align: CENTER
+                    y: 45
+                - label:
+                    text: "Outside Temp"
+                    align: CENTER
+                    y: 65
+          
+
+          - meter:
+              align: RIGHT_MID
+              height: 350
+              width: 350
+              scales:
+                - range_from: 00 # scale for the needle value
+                  range_to: 1000
+                  angle_range: 240
+                  rotation: 150
+                  indicators:
+                    - line:
+                        id: humidity_needle_2
+                        width: 2
+                        color: 0xFF0000
+                        r_mod: -4
+                    - tick_style:
+                        start_value: 0
+                        end_value: 100
+                        color_start: 0x0000bd
+                        color_end: 0xbd0000
+                        width: 1
+                - range_from: 0 # scale for the value labels
+                  range_to: 100
+                  angle_range: 240
+                  rotation: 150
+                  ticks:
+                    width: 1
+                    count: 51
+                    length: 10
+                    color: 0x000000
+                    major:
+                      stride: 5
+                      width: 2
+                      length: 10
+                      color: 0x404040
+                      label_gap: 10
+              widgets:
+                - label:
+                    id: humidity_text_2
+                    text: "-.- %"
+                    align: CENTER
+                    y: 45
+                - label:
+                    text: "Outside Humidity"
+                    align: CENTER
+                    y: 65
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     - id: clock_page
       width: 100%
@@ -491,6 +611,19 @@ sensor:
             format: "%.1f°F"
             args: [ 'x' ]
 
+  - platform: homeassistant
+    id: outside_temperature_2
+    entity_id: sensor.tempcurrent
+    on_value:
+      - lvgl.indicator.update:
+          id: temperature_needle_2
+          value: !lambda return x * 10;
+      - lvgl.label.update:
+          id: temperature_text_2
+          text:
+            format: "%.1f°F"
+            args: [ 'x' ]
+
 
   - platform: homeassistant
     id: inside_humidity
@@ -505,6 +638,18 @@ sensor:
             format: "%.1f%%"
             args: [ 'x' ]
 
+  - platform: homeassistant
+    id: outside_humidity_2
+    entity_id: sensor.humiditycurrent
+    on_value:
+      - lvgl.indicator.update:
+          id: humidity_needle_2
+          value: !lambda return x * 10;
+      - lvgl.label.update:
+          id: humidity_text_2
+          text:
+            format: "%.1f%%"
+            args: [ 'x' ]
   - platform: uptime
     type: seconds
     name: Uptime Sensor
