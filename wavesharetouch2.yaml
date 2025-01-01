@@ -160,6 +160,8 @@ lvgl:
       widgets:
         - label:
             align: CENTER
+            y: 20
+            text_font: montserrat_44
             text: 'Lance Rules! Yes he does...'
         - obj:
             align: TOP_MID
@@ -612,7 +614,7 @@ sensor:
             args: [ 'x' ]
 
   - platform: homeassistant
-    id: outside_temperature_2
+    id: outside_temperature
     entity_id: sensor.tempcurrent
     on_value:
       - lvgl.indicator.update:
@@ -639,7 +641,7 @@ sensor:
             args: [ 'x' ]
 
   - platform: homeassistant
-    id: outside_humidity_2
+    id: outside_humidity
     entity_id: sensor.humiditycurrent
     on_value:
       - lvgl.indicator.update:
@@ -658,14 +660,6 @@ sensor:
     id: barometer_pressure
     entity_id: sensor.pressurecurrent
  
-  - platform: homeassistant
-    id: outside_temperature
-    entity_id: sensor.tempcurrent
-
-  - platform: homeassistant
-    id: outside_humidity
-    entity_id: sensor.humiditycurrent
-
 # Restart & Safe Mode Buttons
 button:
   - platform: restart
