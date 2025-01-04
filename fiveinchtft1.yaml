@@ -64,7 +64,7 @@ output:
 light:
   - platform: monochromatic # Define a monochromatic, dimmable light for the backlight
     output: gpio_backlight_pwm
-    name: ${device_name} Display Backlight
+    name: Display Backlight
     id: back_light
     restore_mode: ALWAYS_ON
 
@@ -644,6 +644,18 @@ sensor:
   - platform: homeassistant
     id: barometer_pressure
     entity_id: sensor.pressurecurrent
+
+  - platform: homeassistant
+    id: dewpoint
+    entity_id: sensor.dewpointcurrent
+
+  - platform: homeassistant
+    id: cloudcover
+    entity_id: sensor.cloudcovercurrent
+
+  - platform: homeassistant
+    id: forecastd1
+    entity_id: sensor.weather_forecast_d1
 
 # Restart & Safe Mode Buttons
 button:
