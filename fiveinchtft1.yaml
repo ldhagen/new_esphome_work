@@ -89,6 +89,45 @@ time:
         then:
           - script.execute: time_update
 
+#script:
+#  - id: time_update
+#    then:
+#      - lvgl.indicator.update:
+#          id: second_hand
+#          value: !lambda |-
+#            return id(homeassistant_time).now().second;
+#      - lvgl.indicator.update:
+#          id: minute_hand
+#          value: !lambda |-
+#            return id(homeassistant_time).now().minute;
+#      - lvgl.indicator.update:
+#          id: hour_hand
+#          value: !lambda |-
+#            auto now = id(homeassistant_time).now();
+#            return std::fmod(now.hour + 60, 12) * 60 + now.minute;
+
+
+#below modified from https://esphome.io/cookbook/lvgl#an-analog-clock with addition of second hand
+#time:
+#  - platform: homeassistant
+#    id: homeassistant_time
+#    timezone: America/Chicago
+#    on_time_sync:
+#      - script.execute: time_update
+#
+#    # Update the clock every second
+#    on_time:
+#      - seconds: "*"
+#        then:
+#          - script.execute: time_update
+#      - if:
+#          condition:
+#            lambda: 'return id(device_last_restart).state == "";'
+#          then:
+#            - text_sensor.template.publish:
+#                id: device_last_restart
+#                state: !lambda 'return id(homeassistant_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'
+
 script:
   - id: time_update
     then:
@@ -104,7 +143,20 @@ script:
           id: hour_hand
           value: !lambda |-
             auto now = id(homeassistant_time).now();
-            return std::fmod(now.hour + 60, 12) * 60 + now.minute;
+            return std::fmod(now.hour, 12) * 60 + now.minute;
+      - lvgl.label.update:
+          id: date_label
+          text: !lambda |-
+            static const char * const mon_names[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+            static char date_buf[8];
+            auto now = id(homeassistant_time).now();
+            snprintf(date_buf, sizeof(date_buf), "%s %2d", mon_names[now.month-1], now.day_of_month);
+            return date_buf;
+      - lvgl.label.update:
+          id: day_label
+          text: !lambda |-
+            static const char * const day_names[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+            return day_names[id(homeassistant_time).now().day_of_week - 1];
 
 display:
   - platform: rpi_dpi_rgb
@@ -162,6 +214,7 @@ touchscreen:
 
 lvgl:
   buffer_size: 25%
+
   pages:
     - id: main_page
       widgets:
@@ -375,78 +428,179 @@ lvgl:
                     align: CENTER
                     y: 65
 
+#    - id: clock_page
+#      width: 100%
+#      bg_color: Black
+#      widgets:
+#          # Outer Clock Container
+#          - obj:
+#              height: 470
+#              width: 470
+#              align: center
+#              pad_all: 4
+#              bg_color: Black
+#              border_width: 0
+#              widgets:
+#              - meter:
+#                  height: 100%
+#                  width: 100%
+#                  align: center
+#                  bg_color: White
+#
+#                  scales:
+#                    # Minor ticks
+#                    - ticks:
+#                        width: 2
+#                        count: 61
+#                        length: 10
+#                        color: Black
+#                      range_from: 0
+#                      range_to: 60
+#                      angle_range: 360
+#                      rotation: 270
+#
+#                      # Minuite hand
+#                      indicators:
+#                        - line:
+#                            id: minute_hand
+#                            width: 3
+#                            color: Black
+#                            r_mod: -1
+#                    # Major ticks
+#                    - angle_range: 330
+#                      rotation: 300
+#                      range_from: 1
+#                      range_to: 12
+#                      ticks:
+#                        width: 3
+#                        count: 12
+#                        length: 20
+#                        color: Black
+#
+#                    # Hour hand
+#                    - angle_range: 360
+#                      rotation: 270
+#                      range_from: 0
+#                      range_to: 720
+#                      indicators:
+#                        - line:
+#                            id: hour_hand
+#                            width: 4
+#                            color: Black
+#                            r_mod: -40
+#
+#                    # Second hand
+#                    - angle_range: 360
+#                      rotation: 270
+#                      range_from: 0
+#                      range_to: 60
+#                      indicators:
+#                        - line:
+#                            id: second_hand
+#                            width: 2
+#                            color: Red
+#                            r_mod: -10
+
+
+#          # Outer Clock Container
+#          - obj:
+#              height: 470
+#              width: 470
+#              align: center
+#              pad_all: 4
+#              bg_color: Black
+#              border_width: 0
+#              widgets:
+#              - meter:
+#                  height: 100%
+#                  width: 100%
+#                  align: center
+#                  bg_color: White
     - id: clock_page
       width: 100%
       bg_color: Black
       widgets:
-          # Outer Clock Container
-          - obj:
-              height: 470
-              width: 470
-              align: center
-              pad_all: 4
-              bg_color: Black
-              border_width: 0
-              widgets:
-              - meter:
-                  height: 100%
-                  width: 100%
-                  align: center
+        - obj: # clock container
+            height: 470
+            width: 470
+            align: CENTER
+            pad_all: 4
+            border_width: 0
+            bg_color: Black
+            widgets:
+              - meter: # clock face
+                  height: 95%
+                  width: 95%
+                  align: CENTER
                   bg_color: White
-
+#                  bg_opa: TRANSP
+                  border_width: 0
+                  text_color: 0x000000
                   scales:
-                    # Minor ticks
-                    - ticks:
-                        width: 2
-                        count: 61
-                        length: 10
-                        color: Black
-                      range_from: 0
+                    - range_from: 0 # minutes scale
                       range_to: 60
                       angle_range: 360
                       rotation: 270
-
-                      # Minuite hand
+                      ticks:
+                        width: 1
+                        count: 61
+                        length: 10
+                        color: 0x000000
                       indicators:
                         - line:
                             id: minute_hand
-                            width: 3
-                            color: Black
-                            r_mod: -1
-                    # Major ticks
-                    - angle_range: 330
-                      rotation: 300
-                      range_from: 1
+                            width: 5
+                            color: black
+                            r_mod: -4
+                            value: 0
+                    - range_from: 1 # hours scale for labels
                       range_to: 12
+                      angle_range: 330
+                      rotation: 300
                       ticks:
-                        width: 3
+                        width: 2
                         count: 12
-                        length: 20
-                        color: Black
-
-                    # Hour hand
-                    - angle_range: 360
-                      rotation: 270
-                      range_from: 0
+                        length: 1
+                        major:
+                          stride: 1
+                          width: 4
+                          length: 10
+                          color: black
+                          label_gap: 12
+                    - range_from: 0 # hi-res hours scale for hand
                       range_to: 720
+                      angle_range: 360
+                      rotation: 270
+                      ticks:
+                        count: 0
                       indicators:
                         - line:
                             id: hour_hand
-                            width: 4
-                            color: Black
+                            width: 5
+                            color: black
                             r_mod: -40
+                            value: 0
 
                     # Second hand
-                    - angle_range: 360
-                      rotation: 270
-                      range_from: 0
+                    - range_from: 0
                       range_to: 60
+                      angle_range: 360
+                      rotation: 270
                       indicators:
                         - line:
                             id: second_hand
                             width: 2
                             color: Red
                             r_mod: -10
+
+              - label:
+                  styles: date_style
+                  id: day_label
+                  y: -50
+              - label:
+                  id: date_label
+                  styles: date_style
+                  y: 50
 
 
   top_layer:
@@ -563,6 +717,13 @@ lvgl:
           text_color: 0xFFFFFF
           width: 100%
           height: 30
+        - id: date_style      # choose an ID for your definition
+          text_font: unscii_16
+          align: center
+          text_color: 0x000000
+          bg_opa: cover
+          radius: 4
+          pad_all: 2
 
 text_sensor:
   - platform: version
