@@ -459,7 +459,7 @@ lvgl:
                     align: CENTER
                     y: 45
                 - label:
-                    text: "Out Humidity"
+                    text: "Out Humid"
                     align: CENTER
                     y: 65
 
