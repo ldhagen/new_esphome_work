@@ -748,7 +748,7 @@ sensor:
 
   - platform: homeassistant
     id: inside_temperature
-    entity_id: sensor.first_air_quality_monitor_temperature
+    entity_id: sensor.devtest2_bme280_temperature_devtest2
     on_value:
       - lvgl.indicator.update:
           id: temperature_needle
@@ -762,7 +762,7 @@ sensor:
 
   - platform: homeassistant 
     id: inside_humidity
-    entity_id: sensor.first_air_quality_monitor_humidity
+    entity_id: sensor.devtest2_bme280_humidity_devtest2
     on_value:
       - lvgl.indicator.update:
           id: humidity_needle
