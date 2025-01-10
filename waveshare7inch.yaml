@@ -1,3 +1,4 @@
+#backlight etc insights from https://github.com/iamfaraz/Waveshare_ST7262_ESPHome_LVGL/blob/main/hadisplay.yaml#L92
 esphome:
   name: waveshare7inch
   friendly_name: waveshare7inch
