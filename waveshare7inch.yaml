@@ -9,19 +9,18 @@ esphome:
     board_upload.maximum_ram_size: 524288
     board_build.flash_size: 8MB
 
+
 esp32:
   board: esp32-s3-devkitc-1
-  variant: esp32s3
-  flash_size: 8MB
   framework:
     type: esp-idf
+    platform_version: 6.8.1
+    version: 5.3.0
     sdkconfig_options:
-      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: y
-      CONFIG_ESP32S3_DATA_CACHE_64KB: y
+      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"
+      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
       CONFIG_SPIRAM_FETCH_INSTRUCTIONS: y
       CONFIG_SPIRAM_RODATA: y
-      CONFIG_ESPTOOLPY_FLASHSIZE_8MB: y
-
 
 psram:
   mode: octal
@@ -52,19 +51,26 @@ wifi:
     ssid: "Waveshare7Inch Fallback Hotspot"
     password: "C39c7PHHW3m1"
 
+packages:
+  common_files:
+    url: https://github.com/agillis/esphome-configs
+    ref: main # optional
+    files: [modules/common/color.yaml,
+            modules/common/fonts.yaml]
+
 external_components:
-  - source: github://pr#7427
-    components: [lvgl, font]
-
-  # CH422G I/O Expander
-  # https://github.com/esphome/esphome/pull/7356
-  - source: github://pr#7356
-    components: [ch422g]
-
-  # rpi_dpi_rgb
-  # https://github.com/esphome/esphome/pull/7383
-  - source: github://pr#7383
-    components: [rpi_dpi_rgb]
+#  - source: github://pr#7427
+#    components: [lvgl, font]
+#
+#  # CH422G I/O Expander
+#  # https://github.com/esphome/esphome/pull/7356
+#  - source: github://pr#7356
+#    components: [ch422g]
+#
+#  # rpi_dpi_rgb
+#  # https://github.com/esphome/esphome/pull/7383
+#  - source: github://pr#7383
+#    components: [rpi_dpi_rgb]
 
 
 i2c:
@@ -73,20 +79,20 @@ i2c:
     scl: GPIO9
     scan: true
 
-ch422g:
-  - id: io_ex
-    address: 0x24
-
-# Toggles backlight of Waveshare ESP32-S3-Touch-LCD-4.3
-switch:
-  - platform: gpio
-    name: "Backlight Toggle"
-    pin: 
-      ch422g: io_ex
-      number: 2
-      allow_other_uses: true
-# CH422G saves the last state internally, but gpio switch sets state as off except when using RESTORE_ modes
-    restore_mode: ALWAYS_ON
+#ch422g:
+#  - id: io_ex
+#    address: 0x24
+#
+## Toggles backlight of Waveshare ESP32-S3-Touch-LCD-4.3
+#switch:
+#  - platform: gpio
+#    name: "Backlight Toggle"
+#    pin: 
+#      ch422g: io_ex
+#      number: 2
+#      allow_other_uses: true
+## CH422G saves the last state internally, but gpio switch sets state as off except when using RESTORE_ modes
+#    restore_mode: ALWAYS_ON
 
 touchscreen:
   platform: gt911
@@ -116,13 +122,13 @@ display:
       height: 480
     de_pin:
       number: 5
-    reset_pin:
-      ch422g: io_ex
-      number: 3
-    enable_pin:
-      ch422g: io_ex
-      number: 2
-      allow_other_uses: true
+#    reset_pin:
+#      ch422g: io_ex
+#      number: 3
+#    enable_pin:
+#      ch422g: io_ex
+#      number: 2
+#      allow_other_uses: true
     hsync_pin:
       number: 46
       ignore_strapping_warning: true
@@ -158,6 +164,288 @@ display:
         - 17 # B6
         - 10 # B7
 
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+    timezone: America/Chicago
+    on_time_sync:
+      - script.execute: time_update
+      - if:
+          condition:
+            lambda: 'return id(device_last_restart).state == "";'
+          then:
+            - text_sensor.template.publish:
+                id: device_last_restart
+                state: !lambda 'return id(homeassistant_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'
+#below modified from https://esphome.io/cookbook/lvgl#an-analog-clock with addition of second hand
+    on_time:
+      - seconds: "*"
+        then:
+          - script.execute: time_update
+
+script:
+  - id: time_update
+    then:
+      - lvgl.indicator.update:
+          id: second_hand
+          value: !lambda |-
+            return id(homeassistant_time).now().second;
+      - lvgl.indicator.update:
+          id: minute_hand
+          value: !lambda |-
+            return id(homeassistant_time).now().minute;
+      - lvgl.indicator.update:
+          id: hour_hand
+          value: !lambda |-
+            auto now = id(homeassistant_time).now();
+            return std::fmod(now.hour, 12) * 60 + now.minute;
+      - lvgl.label.update:
+          id: date_label
+          text: !lambda |-
+            static const char * const mon_names[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+            static char date_buf[8];
+            auto now = id(homeassistant_time).now();
+            snprintf(date_buf, sizeof(date_buf), "%s %2d", mon_names[now.month-1], now.day_of_month);
+            return date_buf;
+      - lvgl.label.update:
+          id: day_label
+          text: !lambda |-
+            static const char * const day_names[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+            return day_names[id(homeassistant_time).now().day_of_week - 1];
+
+lvgl:
+  color_depth: 16
+  bg_color: 0
+  border_width: 0
+  outline_width: 0
+  shadow_width: 0
+  text_font: unscii_16
+  align: center
+  pages:
+#    - id: clock_page
+    - id: main_page
+      width: 100%
+      bg_color: Black
+      widgets:
+        - obj: # clock container
+            height: 470
+            width: 470
+            align: CENTER
+            pad_all: 4
+            border_width: 0
+            bg_color: Black
+            widgets:
+              - meter: # clock face
+                  height: 95%
+                  width: 95%
+                  align: CENTER
+                  bg_color: White
+#                  bg_opa: TRANSP
+                  border_width: 0
+                  text_color: 0x000000
+                  scales:
+                    - range_from: 0 # minutes scale
+                      range_to: 60
+                      angle_range: 360
+                      rotation: 270
+                      ticks:
+                        width: 1
+                        count: 61
+                        length: 10
+                        color: 0x000000
+                      indicators:
+                        - line:
+                            id: minute_hand
+                            width: 5
+                            color: black
+                            r_mod: -4
+                            value: 0
+                    - range_from: 1 # hours scale for labels
+                      range_to: 12
+                      angle_range: 330
+                      rotation: 300
+                      ticks:
+                        width: 2
+                        count: 12
+                        length: 1
+                        major:
+                          stride: 1
+                          width: 4
+                          length: 10
+                          color: black
+                          label_gap: 12
+                    - range_from: 0 # hi-res hours scale for hand
+                      range_to: 12
+                      angle_range: 330
+                      rotation: 300
+                      ticks:
+                        width: 2
+                        count: 12
+                        length: 1
+                        major:
+                          stride: 1
+                          width: 4
+                          length: 10
+                          color: black
+                          label_gap: 12
+                    - range_from: 0 # hi-res hours scale for hand
+                      range_to: 720
+                      angle_range: 360
+                      rotation: 270
+                      ticks:
+                        count: 0
+                      indicators:
+                        - line:
+                            id: hour_hand
+                            width: 5
+                            color: black
+                            r_mod: -40
+                            value: 0
+
+                    # Second hand
+                    - range_from: 0
+                      range_to: 60
+                      angle_range: 360
+                      rotation: 270
+                      indicators:
+                       - line:
+                            id: second_hand
+                            width: 2
+                            color: Red
+                            r_mod: -10
+
+              - label:
+                  styles: date_style
+                  id: day_label
+                  y: -50
+              - label:
+                  id: date_label
+                  styles: date_style
+                  y: 50
+
+  top_layer:
+    widgets:
+      - buttonmatrix:
+          align: bottom_mid
+          styles: header_footer
+          pad_all: 0
+          outline_width: 0
+          id: top_layer
+          items:
+            styles: header_footer
+          rows:
+            - buttons:
+              - id: page_prev
+                text: "\uF053"
+                on_press:
+                  then:
+                    lvgl.page.previous:
+              - id: page_home
+                text: "\uF015"
+                on_press:
+                  then:
+                    lvgl.page.show: main_page
+              - id: page_next
+                text: "\uF054"
+                on_press:
+                  then:
+                    lvgl.page.next:
+
+  theme:
+    button:
+      bg_color: 0x2F8CD8
+      bg_grad_color: 0x005782
+      bg_grad_dir: VER
+      bg_opa: COVER
+      border_color: 0x0077b3
+      border_width: 1
+      text_color: 0xFFFFFF
+      pressed: # set some button colors to be different in pressed state
+        bg_color: 0x006699
+        bg_grad_color: 0x00334d
+      checked: # set some button colors to be different in checked state
+        bg_color: 0x1d5f96
+        bg_grad_color: 0x03324A
+        text_color: 0xfff300
+    buttonmatrix:
+      bg_opa: TRANSP
+      border_color: 0x0077b3
+      border_width: 0
+      text_color: 0xFFFFFF
+      pad_all: 0
+      items: # set all your buttonmatrix buttons to use your custom defined styles and font
+        bg_color: 0x2F8CD8
+        bg_grad_color: 0x005782
+        bg_grad_dir: VER
+        bg_opa: COVER
+        border_color: 0x0077b3
+        border_width: 1
+        text_color: 0xFFFFFF
+        pressed:
+          bg_color: 0x006699
+          bg_grad_color: 0x00334d
+        checked:
+          bg_color: 0x1d5f96
+          bg_grad_color: 0x03324A
+          text_color: 0x005580
+    switch:
+      bg_color: 0xC0C0C0
+      bg_grad_color: 0xb0b0b0
+      bg_grad_dir: VER
+      bg_opa: COVER
+      checked:
+        bg_color: 0x1d5f96
+        bg_grad_color: 0x03324A
+        bg_grad_dir: VER
+        bg_opa: COVER
+      knob:
+        bg_color: 0xFFFFFF
+        bg_grad_color: 0xC0C0C0
+        bg_grad_dir: VER
+        bg_opa: COVER
+    slider:
+      border_width: 1
+      border_opa: 15%
+      bg_color: 0xcccaca
+      bg_opa: 15%
+      indicator:
+        bg_color: 0x1d5f96
+        bg_grad_color: 0x03324A
+        bg_grad_dir: VER
+        bg_opa: COVER
+      knob:
+        bg_color: 0x2F8CD8
+        bg_grad_color: 0x005782
+        bg_grad_dir: VER
+        bg_opa: COVER
+        border_color: 0x0077b3
+        border_width: 1
+        text_color: 0xFFFFFF
+  style_definitions:
+        - id: header_footer
+          bg_color: 0x2F8CD8
+          bg_grad_color: 0x005782
+          bg_grad_dir: VER
+          bg_opa: COVER
+          border_opa: TRANSP
+          radius: 0
+          pad_all: 0
+          pad_row: 0
+          pad_column: 0
+          border_color: 0x0077b3
+          text_color: 0xFFFFFF
+          width: 100%
+          height: 30
+        - id: date_style      # choose an ID for your definition
+          text_font: unscii_16
+          align: center
+          text_color: 0x000000
+          bg_opa: cover
+          radius: 4
+          pad_all: 2
+
+
+
 sensor:
   - platform: wifi_signal
     name: "Waveshare 7 Inch Signal Sensor"
@@ -170,7 +458,35 @@ sensor:
   - platform: homeassistant  
     id: inside_humidity
     entity_id: sensor.devtest2_bme280_humidity_devtest2
-  
+
+  - platform: homeassistant
+    id: outside_temperature
+    entity_id: sensor.tempcurrent
+
+  - platform: homeassistant
+    id: outside_humidity
+    entity_id: sensor.humiditycurrent
+
+  - platform: homeassistant
+    id: barometer_pressure
+    entity_id: sensor.pressurecurrent
+
+  - platform: homeassistant
+    id: dewpoint
+    entity_id: sensor.dewpointcurrent
+
+  - platform: homeassistant
+    id: cloudcover
+    entity_id: sensor.cloudcovercurrent
+
+  - platform: homeassistant
+    id: weatherforecastd1
+    entity_id: sensor.weather_forecast_d1
+
+  - platform: homeassistant
+    id: tempforecastd1
+    entity_id: sensor.temperature_forecast_d1
+      
   - platform: uptime
     type: seconds
     name: Uptime Sensor
@@ -178,7 +494,16 @@ sensor:
 text_sensor:
   - platform: version
     name: "ESPHome Version" 
+  - platform: template
+    name: 'Last Restart'
+    id: device_last_restart
+    icon: mdi:clock
+    entity_category: diagnostic
 
+binary_sensor:
+  - platform: status
+    name: "Status"
+    entity_category: diagnostic
  
 # Restart & Safe Mode Buttons
 button:
@@ -190,8 +515,7 @@ button:
 web_server:
   port: 80
   include_internal: True
-
-
+  version: 3
 
 
 captive_portal:
