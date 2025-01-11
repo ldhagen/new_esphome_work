@@ -1,3 +1,4 @@
+#backlight etc insights from https://github.com/iamfaraz/Waveshare_ST7262_ESPHome_LVGL/blob/main/hadisplay.yaml#L92
 esphome:
   name: wavesharetouch2
   friendly_name: wavesharetouch2
@@ -54,6 +55,30 @@ i2c:
   scl: GPIO09
   scan: True
   id: bus_a
+
+
+external_components:
+
+  # CH422G I/O Expander
+  # https://github.com/esphome/esphome/pull/7356
+  - source: github://pr#7356
+    components: [ch422g]
+
+ch422g:
+  - id: io_ex
+    address: 0x24
+
+# Toggles backlight of Waveshare ESP32-S3-Touch-LCD-4.3
+switch:
+  - platform: gpio
+    name: "Backlight Toggle"
+    pin: 
+      ch422g: io_ex
+      number: 2
+        #      allow_other_uses: true
+# CH422G saves the last state internally, but gpio switch sets state as off except when using RESTORE_ modes
+    restore_mode: ALWAYS_ON
+
 
 time:
   - platform: homeassistant
@@ -142,8 +167,10 @@ display:
 
 touchscreen:
   platform: gt911
+  address: 0x5D
   id: my_touchscreen
-  interrupt_pin: GPIO4
+  update_interval: 16ms
+  interrupt_pin: 4
   on_touch:
     - lambda: |-
           ESP_LOGI("cal", "x=%d, y=%d, x_raw=%d, y_raw=%0d",
@@ -152,6 +179,7 @@ touchscreen:
               touch.x_raw,
               touch.y_raw
               );
+
 
 lvgl:
   buffer_size: 25%
