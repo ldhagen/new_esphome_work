@@ -58,41 +58,36 @@ packages:
     files: [modules/common/color.yaml,
             modules/common/fonts.yaml]
 
-external_components:
-#  - source: github://pr#7427
-#    components: [lvgl, font]
-#
-#  # CH422G I/O Expander
-#  # https://github.com/esphome/esphome/pull/7356
-#  - source: github://pr#7356
-#    components: [ch422g]
-#
-#  # rpi_dpi_rgb
-#  # https://github.com/esphome/esphome/pull/7383
-#  - source: github://pr#7383
-#    components: [rpi_dpi_rgb]
-
-
 i2c:
   - id: bus_a
     sda: GPIO8
     scl: GPIO9
     scan: true
 
-#ch422g:
-#  - id: io_ex
-#    address: 0x24
-#
-## Toggles backlight of Waveshare ESP32-S3-Touch-LCD-4.3
-#switch:
-#  - platform: gpio
-#    name: "Backlight Toggle"
-#    pin: 
-#      ch422g: io_ex
-#      number: 2
-#      allow_other_uses: true
-## CH422G saves the last state internally, but gpio switch sets state as off except when using RESTORE_ modes
-#    restore_mode: ALWAYS_ON
+external_components:
+
+  # CH422G I/O Expander
+  # https://github.com/esphome/esphome/pull/7356
+  - source: github://pr#7356
+    components: [ch422g]
+
+ch422g:
+  - id: io_ex
+    address: 0x24
+
+# Toggles backlight of Waveshare ESP32-S3-Touch-LCD-4.3
+switch:
+  - platform: gpio
+    name: "Backlight Toggle"
+    pin:
+      ch422g: io_ex
+      number: 2
+        #      allow_other_uses: true
+# CH422G saves the last state internally, but gpio switch sets state as off except when using RESTORE_ modes
+    restore_mode: ALWAYS_ON
+
+      
+
 
 touchscreen:
   platform: gt911
