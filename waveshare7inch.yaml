@@ -166,13 +166,13 @@ display:
       height: 480
     de_pin:
       number: 5
-#    reset_pin:
-#      ch422g: io_ex
-#      number: 3
-#    enable_pin:
-#      ch422g: io_ex
-#      number: 2
-#      allow_other_uses: true
+    reset_pin:
+      ch422g: io_ex
+      number: 3
+    enable_pin:
+      ch422g: io_ex
+      number: 5
+      allow_other_uses: false
     hsync_pin:
       number: 46
       ignore_strapping_warning: true
@@ -208,26 +208,21 @@ display:
         - 17 # B6
         - 10 # B7
 
+image:
+  - file: Paris600_400.jpg
+    id: Paris_image
+    resize: 600x400
+    type: RGB565
+
+
 lvgl:
   buffer_size: 25%
   pages:
-    - id: main_page
+    - id: main_page      
       widgets:
-        - label:
-            align: CENTER
-            y: 20
-            text_font: montserrat_44
-            text: 'Lance Rules! Yes he does...'
-        - obj:
-            align: TOP_MID
-            styles: header_footer
-            widgets:
-              - label:
-                  text: "ESPHome LVGL Display"
-                  align: CENTER
-                  text_align: CENTER
-                  text_color: 0xFFFFFF
-
+          - image:
+              src: Paris_image
+              align: CENTER
 
     - id: meter_page_1
       widgets:
