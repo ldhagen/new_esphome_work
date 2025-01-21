@@ -19,6 +19,18 @@ esp32:
 api:
   encryption:
     key: "GhDzPzQcLq3xg9LVDrpIolcR5wu5hg/cDJs7wk1vjqM="
+  on_client_connected:
+    - if:
+        condition:
+          lambda: 'return (0 == client_info.find("Home Assistant "));'
+        then:
+          - lvgl.widget.show: lbl_hastatus
+  on_client_disconnected:
+    - if:
+        condition:
+          lambda: 'return (0 == client_info.find("Home Assistant "));'
+        then:
+          - lvgl.widget.hide: lbl_hastatus
 
 ota:
   - platform: esphome
@@ -55,6 +67,29 @@ i2c:
   scl: GPIO09
   scan: True
   id: bus_a
+
+external_components:
+
+  # CH422G I/O Expander
+  # https://github.com/esphome/esphome/pull/7356
+  - source: github://pr#7356
+    components: [ch422g]
+
+ch422g:
+  - id: io_ex
+    address: 0x24
+
+# Toggles backlight of Waveshare ESP32-S3-Touch-LCD-4.3
+switch:
+  - platform: gpio
+    name: "Backlight Toggle"
+    pin:
+      ch422g: io_ex
+      number: 2
+        #      allow_other_uses: true
+# CH422G saves the last state internally, but gpio switch sets state as off except when using RESTORE_ modes
+    restore_mode: ALWAYS_ON
+
 
 display:
   - platform: rpi_dpi_rgb
@@ -142,11 +177,143 @@ lvgl:
   buffer_size: 25%
   pages:
     - id: main_page
+      bg_color: 0xFF0000
       widgets:
           - image:
               src: Paris_image
               align: CENTER
               id: first_image
+
+  top_layer:
+    widgets:
+      - buttonmatrix:
+          align: bottom_mid
+          styles: header_footer
+          pad_all: 0
+          outline_width: 0
+          id: top_layer
+          items:
+            styles: header_footer
+          rows:
+            - buttons:
+              - id: page_prev
+                text: "\uF053"
+                on_press:
+                  then:
+                    lvgl.page.previous:
+              - id: page_home
+                text: "\uF015"
+                on_press:
+                  then:
+                    lvgl.page.show: main_page
+              - id: page_next
+                text: "\uF054"
+                on_press:
+                  then:
+                    lvgl.page.next:
+      - label:
+          text: "\uF1EB"
+          id: lbl_hastatus
+          hidden: true
+          align: top_right
+          x: -2
+          y: 7
+          text_align: right
+          text_color: 0xFFFFFF                      
+
+  theme:
+    button:
+      bg_color: 0x2F8CD8
+      bg_grad_color: 0x005782
+      bg_grad_dir: VER
+      bg_opa: COVER
+      border_color: 0x0077b3
+      border_width: 1
+      text_color: 0xFFFFFF
+      pressed: # set some button colors to be different in pressed state
+        bg_color: 0x006699
+        bg_grad_color: 0x00334d
+      checked: # set some button colors to be different in checked state
+        bg_color: 0x1d5f96
+        bg_grad_color: 0x03324A
+        text_color: 0xfff300
+    buttonmatrix:
+      bg_opa: TRANSP
+      border_color: 0x0077b3
+      border_width: 0
+      text_color: 0xFFFFFF
+      pad_all: 0
+      items: # set all your buttonmatrix buttons to use your custom defined styles and font
+        bg_color: 0x2F8CD8
+        bg_grad_color: 0x005782
+        bg_grad_dir: VER
+        bg_opa: COVER
+        border_color: 0x0077b3
+        border_width: 1
+        text_color: 0xFFFFFF
+        pressed:
+          bg_color: 0x006699
+          bg_grad_color: 0x00334d
+        checked:
+          bg_color: 0x1d5f96
+          bg_grad_color: 0x03324A
+          text_color: 0x005580
+    switch:
+      bg_color: 0xC0C0C0
+      bg_grad_color: 0xb0b0b0
+      bg_grad_dir: VER
+      bg_opa: COVER
+      checked:
+        bg_color: 0x1d5f96
+        bg_grad_color: 0x03324A
+        bg_grad_dir: VER
+        bg_opa: COVER
+      knob:
+        bg_color: 0xFFFFFF
+        bg_grad_color: 0xC0C0C0
+        bg_grad_dir: VER
+        bg_opa: COVER
+    slider:
+      border_width: 1
+      border_opa: 15%
+      bg_color: 0xcccaca
+      bg_opa: 15%
+      indicator:
+        bg_color: 0x1d5f96
+        bg_grad_color: 0x03324A
+        bg_grad_dir: VER
+        bg_opa: COVER
+      knob:
+        bg_color: 0x2F8CD8
+        bg_grad_color: 0x005782
+        bg_grad_dir: VER
+        bg_opa: COVER
+        border_color: 0x0077b3
+        border_width: 1
+        text_color: 0xFFFFFF
+  style_definitions:
+        - id: header_footer
+          bg_color: 0x2F8CD8
+          bg_grad_color: 0x005782
+          bg_grad_dir: VER
+          bg_opa: COVER
+          border_opa: TRANSP
+          radius: 0
+          pad_all: 0
+          pad_row: 0
+          pad_column: 0
+          border_color: 0x0077b3
+          text_color: 0xFFFFFF
+          width: 100%
+          height: 30
+        - id: date_style      # choose an ID for your definition
+          text_font: unscii_16
+          align: center
+          text_color: 0x000000
+          bg_opa: cover
+          radius: 4
+          pad_all: 2
+
 
 text_sensor:
   - platform: version
