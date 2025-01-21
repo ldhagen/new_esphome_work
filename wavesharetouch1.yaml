@@ -177,12 +177,24 @@ lvgl:
   buffer_size: 25%
   pages:
     - id: main_page
-      bg_color: 0xFF0000
+      bg_color: 0x022000
       widgets:
           - image:
               src: Paris_image
               align: CENTER
               id: first_image
+
+    - id: clock_page
+      width: 100%
+      bg_color: Black
+      widgets:
+        - obj: # clock container
+            height: 470
+            width: 470
+            align: CENTER
+            pad_all: 4
+            border_width: 0
+            bg_color: Black                
 
   top_layer:
     widgets:
