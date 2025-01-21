@@ -102,9 +102,6 @@ display:
         - 48        #g5
         - 47        #g6
         - 21        #g7
-    lambda: |-
-      // Draw the image my_online_image at position [x=0,y=0]
-      it.image(50, 0, id(my_online_image));
 
 touchscreen:
   platform: gt911
@@ -127,9 +124,30 @@ online_image:
     format: png
     id: my_online_image
     type: RGB565
-      #    resize: 450x450
+    resize: 450x450
     on_download_finished:
-      component.update: my_display
+      #  component.update: my_display
+      lvgl.image.update:
+        id: first_image
+        src: my_online_image
+      
+
+image:
+  - file: Paris600_400.jpg
+    id: Paris_image
+    resize: 750x420
+    type: RGB565
+
+lvgl:
+  buffer_size: 25%
+  pages:
+    - id: main_page
+      widgets:
+          - image:
+              src: Paris_image
+              align: CENTER
+              id: first_image
+
 text_sensor:
   - platform: version
     id: esphome_version
