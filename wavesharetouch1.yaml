@@ -331,11 +331,16 @@ text_sensor:
   - platform: version
     id: esphome_version
     name: "ESPHome Version"
+
   - platform: template
     name: 'Last Restart'
     id: device_last_restart
     icon: mdi:clock
     entity_category: diagnostic
+
+  - platform: homeassistant
+    id: weatherforecastd1
+    entity_id: sensor.weather_forecast_d1
 
 binary_sensor:
   - platform: status
@@ -355,14 +360,29 @@ sensor:
     id: inside_humidity
     entity_id: sensor.first_air_quality_monitor_humidity
 
-  - platform: uptime
-    type: seconds
-    name: Uptime Sensor
-
   - platform: homeassistant
     id: barometer_pressure
     entity_id: sensor.devtest2_bme280_pressure_devtest2
 
+  - platform: homeassistant 
+    id: barometer_pressure_online
+    entity_id: sensor.pressurecurrent
+
+  - platform: homeassistant
+    id: dewpoint
+    entity_id: sensor.dewpointcurrent
+
+  - platform: homeassistant
+    id: cloudcover
+    entity_id: sensor.cloudcovercurrent
+
+  - platform: homeassistant
+    id: tempforecastd1 
+    entity_id: sensor.temperature_forecast_d1
+
+  - platform: uptime
+    type: seconds
+    name: Uptime Sensor
  
 # Restart & Safe Mode Buttons
 button:
