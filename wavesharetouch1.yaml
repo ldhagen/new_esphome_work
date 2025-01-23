@@ -96,6 +96,37 @@ switch:
     restore_mode: ALWAYS_ON
 
 
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+    timezone: America/Chicago
+    on_time_sync:
+#      - script.execute: time_update
+      - if:
+          condition:
+            lambda: 'return id(device_last_restart).state == "";'
+          then:
+            - text_sensor.template.publish:
+                id: device_last_restart
+                state: !lambda 'return id(homeassistant_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'
+
+    on_time:
+      - minutes: "*"
+        then:
+          - script.execute: wifisig_update
+
+
+
+script:
+  - id: wifisig_update
+    then:
+      - lvgl.label.update:
+          id: lbl_id 
+          text:
+            format: "%.0fdBm"
+            args: [ 'id(wifi_sig).get_state()' ]            
+  
+
 display:
   - platform: rpi_dpi_rgb
     id: my_display
@@ -174,7 +205,7 @@ online_image:
       
 
 image:
-  - file: Paris600_400.jpg
+  - file: wxmedium.png
     id: Paris_image
     resize: 750x420
     type: RGB565
@@ -205,7 +236,15 @@ lvgl:
             text_font: montserrat_28
             text: "\uF013"
          
-    
+    - id: page_3
+      widgets:
+        -  obj:
+            x: 10
+            y: 10
+            width: 220
+            height: 300
+            bg_color: green
+          
   top_layer:
     widgets:
       - buttonmatrix:
