@@ -3,17 +3,23 @@ esphome:
   friendly_name: wavesharetouch1
   platformio_options:
     build_flags: "-DBOARD_HAS_PSRAM"
-    board_build.arduino.memory_type: qio_opi
+    board_build.esp-idf.memory_type: qio_opi
     board_build.flash_mode: dio
     board_upload.maximum_ram_size: 524288
+    board_build.flash_size: 8MB
 
 esp32:
-  board: esp32s3box
+  board: esp32-s3-devkitc-1
   framework:
     type: esp-idf
-    version: 5.2.2
-    platform_version: 6.7.0
-    
+    platform_version: 6.8.1
+    version: 5.3.0
+    sdkconfig_options:
+      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"
+      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
+      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: y
+      CONFIG_SPIRAM_RODATA: y
+
 
 # Enable Home Assistant API
 api:
@@ -115,6 +121,10 @@ time:
         then:
           - script.execute: wifisig_update
 
+#      - minutes: "2"
+#        then:
+#          - script.execute: http_update
+
 
 
 script:
@@ -127,6 +137,20 @@ script:
             args: [ 'id(wifi_sig).get_state()' ]            
   
 
+#  - id: http_update
+#    then:
+#      - http_request.get:
+#          url: https://esphome.io
+#          headers:
+#            Content-Type: application/json
+#          on_response:
+#            then:
+#              - logger.log:
+#                  format: 'Response status: %d, Duration: %u ms'
+#                  args:
+#                    - response->status_code
+#                    - response->duration_ms
+    
 display:
   - platform: rpi_dpi_rgb
     id: my_display
