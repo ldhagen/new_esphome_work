@@ -209,9 +209,9 @@ display:
         - 10 # B7
 
 image:
-  - file: Paris600_400.jpg
+  - file: Paris800_480.jpg 
     id: Paris_image
-    resize: 600x400
+    resize: 750x420
     type: RGB565
 
 
