@@ -79,6 +79,7 @@ ch422g:
 switch:
   - platform: gpio
     name: "Backlight Toggle"
+    id: backlight_switch
     pin:
       ch422g: io_ex
       number: 2
@@ -529,6 +530,11 @@ lvgl:
                 on_press:
                   then:
                     lvgl.page.show: main_page
+              - id: light_off
+                text: "\uF0355"
+                on_press:
+                  then:
+                     switch.turn_off: backlight_switch
               - id: page_next
                 text: "\uF054"
                 on_press:
