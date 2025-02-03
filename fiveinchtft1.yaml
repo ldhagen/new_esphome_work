@@ -428,94 +428,6 @@ lvgl:
                     align: CENTER
                     y: 65
 
-#    - id: clock_page
-#      width: 100%
-#      bg_color: Black
-#      widgets:
-#          # Outer Clock Container
-#          - obj:
-#              height: 470
-#              width: 470
-#              align: center
-#              pad_all: 4
-#              bg_color: Black
-#              border_width: 0
-#              widgets:
-#              - meter:
-#                  height: 100%
-#                  width: 100%
-#                  align: center
-#                  bg_color: White
-#
-#                  scales:
-#                    # Minor ticks
-#                    - ticks:
-#                        width: 2
-#                        count: 61
-#                        length: 10
-#                        color: Black
-#                      range_from: 0
-#                      range_to: 60
-#                      angle_range: 360
-#                      rotation: 270
-#
-#                      # Minuite hand
-#                      indicators:
-#                        - line:
-#                            id: minute_hand
-#                            width: 3
-#                            color: Black
-#                            r_mod: -1
-#                    # Major ticks
-#                    - angle_range: 330
-#                      rotation: 300
-#                      range_from: 1
-#                      range_to: 12
-#                      ticks:
-#                        width: 3
-#                        count: 12
-#                        length: 20
-#                        color: Black
-#
-#                    # Hour hand
-#                    - angle_range: 360
-#                      rotation: 270
-#                      range_from: 0
-#                      range_to: 720
-#                      indicators:
-#                        - line:
-#                            id: hour_hand
-#                            width: 4
-#                            color: Black
-#                            r_mod: -40
-#
-#                    # Second hand
-#                    - angle_range: 360
-#                      rotation: 270
-#                      range_from: 0
-#                      range_to: 60
-#                      indicators:
-#                        - line:
-#                            id: second_hand
-#                            width: 2
-#                            color: Red
-#                            r_mod: -10
-
-
-#          # Outer Clock Container
-#          - obj:
-#              height: 470
-#              width: 470
-#              align: center
-#              pad_all: 4
-#              bg_color: Black
-#              border_width: 0
-#              widgets:
-#              - meter:
-#                  height: 100%
-#                  width: 100%
-#                  align: center
-#                  bg_color: White
     - id: clock_page
       width: 100%
       bg_color: Black
@@ -615,6 +527,11 @@ lvgl:
             styles: header_footer
           rows:
             - buttons:
+              - id: light_on
+                text: "\uF0355"
+                on_press:
+                  then:
+                    light.turn_on: back_light
               - id: page_prev
                 text: "\uF053"
                 on_press:
@@ -625,6 +542,11 @@ lvgl:
                 on_press:
                   then:
                     lvgl.page.show: main_page
+              - id: light_off
+                text: "\uF0355"
+                on_press:
+                  then:
+                    light.turn_off: back_light
               - id: page_next
                 text: "\uF054"
                 on_press:
