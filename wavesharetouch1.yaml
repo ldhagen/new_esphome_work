@@ -93,6 +93,7 @@ ch422g:
 # Toggles backlight of Waveshare ESP32-S3-Touch-LCD-4.3
 switch:
   - platform: gpio
+    id: backlight_switch
     name: "Backlight Toggle"
     pin:
       ch422g: io_ex
@@ -281,6 +282,11 @@ lvgl:
             styles: header_footer
           rows:
             - buttons:
+              - id: light_on
+                text: "\uF0355"
+                on_press:
+                  then:
+                     switch.turn_on: backlight_switch
               - id: page_prev
                 text: "\uF053"
                 on_press:
@@ -291,11 +297,17 @@ lvgl:
                 on_press:
                   then:
                     lvgl.page.show: main_page
+              - id: light_off
+                text: "\uF0355"
+                on_press:
+                  then:
+                     switch.turn_off: backlight_switch
               - id: page_next
                 text: "\uF054"
                 on_press:
                   then:
                     lvgl.page.next:
+
       - label:
           text: "\uF1EB"
           id: lbl_hastatus
