@@ -520,6 +520,11 @@ lvgl:
             styles: header_footer
           rows:
             - buttons:
+              - id: light_on
+                text: "\uF0355"
+                on_press:
+                  then:
+                     switch.turn_on: backlight_switch              
               - id: page_prev
                 text: "\uF053"
                 on_press:
