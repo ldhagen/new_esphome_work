@@ -106,6 +106,7 @@ display:
     platform: ili9xxx
     model: ILI9341
     spi_id: tft
+    rotation: 270
     cs_pin:
       number: 15
       ignore_strapping_warning: true
@@ -131,6 +132,8 @@ touchscreen:
       y_max: 3860
     transform:
       mirror_x: true
+      mirror_y: true
+      swap_xy: true
     # on_touch:
     #   - lambda: |-
     #         ESP_LOGI("cal", "x=%d, y=%d, x_raw=%d, y_raw=%0d",
