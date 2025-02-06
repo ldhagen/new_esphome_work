@@ -35,6 +35,14 @@ ota:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+  on_connect:
+    - component.update: my_online_image
+    - lvgl.label.update:
+        id: lbl_id
+        text: 
+          format: "%.0fdBm"
+          args: [ 'id(wifi_sig).get_state()' ]
+            
 
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
@@ -87,7 +95,7 @@ output:
 
 
 light:
-  - id: backlight
+  - id: back_light
     platform: monochromatic
     output: backlight_pwm
     name: Display Backlight
@@ -100,6 +108,32 @@ light:
     blue: output_blue
     restore_mode: ALWAYS_OFF
 
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+    timezone: America/Chicago
+    on_time_sync:
+#      - script.execute: time_update
+      - if:
+          condition:
+            lambda: 'return id(device_last_restart).state == "";'
+          then:
+            - text_sensor.template.publish:
+                id: device_last_restart
+                state: !lambda 'return id(homeassistant_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'
+    on_time:
+      - minutes: "*"
+        then:
+          - script.execute: wifisig_update
+
+script:
+  - id: wifisig_update
+    then:
+      - lvgl.label.update:
+          id: lbl_id
+          text:
+            format: "%.0fdBm"
+            args: [ 'id(wifi_sig).get_state()' ]
 
 display:
   - id: main_display
@@ -143,38 +177,66 @@ touchscreen:
     #           touch.y_raw
     #         );
 
+
+http_request:
+  verify_ssl: False
+
+online_image:
+  #  - url: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png"
+  #- url: "http://homeassistant.local:8123/local/test1.png"
+#  - url: "http://homeassistant.local:8123/local/Paris800_480.png"
+  - url: "http://homeassistant.local:8123/local/bulb.png"
+    format: png
+    id: my_online_image
+    type: RGB565
+#    resize: 100x100
+    on_download_finished:
+      #  component.update: my_display
+      lvgl.image.update:
+        id: first_image
+        src: my_online_image
+
+image:
+  - file: dice.png
+    id: Paris_image
+    resize: 750x420
+    type: RGB565
+
 lvgl:
   buffer_size: 25%
-  displays:
-    - main_display
-  touchscreens:
-    - main_touchscreen
   pages:
     - id: main_page
+      bg_color: 0x022000
+      widgets:
+          - image:
+              src: Paris_image
+              align: CENTER 
+              id: first_image
+    
+    - id: page_2
       widgets:
         - label:
             align: CENTER
-            text: 'Lance Rules! Yes he does...'
-        - obj:
+            id: lbl_id
+            text_font: montserrat_28
+            recolor: true
+            text: "#FF0000 write# #00FF00 colored# #0000FF text#"
+
+        - label:
             align: TOP_MID
-            styles: header_footer
-            widgets:
-              - label:
-                  text: "ESPHome LVGL Display"
-                  align: CENTER
-                  text_align: CENTER
-                  text_color: 0xFFFFFF
-    - id: second_page
+            id: lbl_symbol
+            text_font: montserrat_28
+            text: "\uF013"
+
+    - id: page_3
       widgets:
-        - obj:
-            align: TOP_MID
-            styles: header_footer
-            widgets:
-              - label:
-                  text: "A second page"
-                  align: CENTER
-                  text_align: CENTER
-                  text_color: 0xFFFFF
+        -  obj:
+            x: 10
+            y: 10
+            width: 220
+            height: 300
+            bg_color: green
+   
   
   top_layer:
     widgets:
@@ -188,6 +250,11 @@ lvgl:
             styles: header_footer
           rows:
             - buttons:
+              - id: light_on
+                text: "\uF0355"
+                on_press:
+                  then:
+                    light.turn_on: back_light
               - id: page_prev
                 text: "\uF053"
                 on_press:
@@ -198,11 +265,16 @@ lvgl:
                 on_press:
                   then:
                     lvgl.page.show: main_page
+              - id: light_off
+                text: "\uF0355"
+                on_press:
+                  then:
+                    light.turn_off: back_light
               - id: page_next
                 text: "\uF054"
                 on_press:
                   then:
-                    lvgl.page.next:
+                    lvgl.page.next:            
   
   theme:
 #    label:
@@ -294,9 +366,24 @@ lvgl:
       height: 30
 
 
+text_sensor:
+  - platform: version
+    id: esphome_version
+    name: "ESPHome Version"
+        
+  - platform: template
+    name: 'Last Restart'
+    id: device_last_restart
+    icon: mdi:clock
+    entity_category: diagnostic
+
+  - platform: homeassistant
+    id: weatherforecastd1
+    entity_id: sensor.weather_forecast_d1        
 
 sensor:
   - platform: wifi_signal
+    id: wifi_sig
     name: "DIYMall WiFi Signal Sensor"
     update_interval: 60s
   
@@ -329,6 +416,6 @@ button:
 web_server:
   port: 80
   include_internal: True
-  version: 2
+  version: 3
 
 captive_portal:
