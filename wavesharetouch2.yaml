@@ -27,6 +27,8 @@ ota:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+  on_connect:
+    - component.update: my_online_image
 
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
@@ -180,27 +182,38 @@ touchscreen:
               touch.y_raw
               );
 
+http_request:
+  verify_ssl: False
+
+online_image:
+  #  - url: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png"
+  #- url: "http://homeassistant.local:8123/local/test1.png"
+  - url: "http://homeassistant.local:8123/local/Paris800_480.png"
+    format: png
+    id: my_online_image
+    type: RGB565
+    resize: 800x480
+    on_download_finished:
+      #  component.update: my_display
+      lvgl.image.update:
+        id: first_image
+        src: my_online_image
+
+image:
+  - file: bulb.png
+    id: Paris_image
+    resize: 750x420
+    type: RGB565          
 
 lvgl:
   buffer_size: 25%
   pages:
     - id: main_page
       widgets:
-        - label:
-            align: CENTER
-            y: 20
-            text_font: montserrat_44
-            text: 'Lance Rules! Yes he does...'
-        - obj:
-            align: TOP_MID
-            styles: header_footer
-            widgets:
-              - label:
-                  text: "ESPHome LVGL Display"
-                  align: CENTER
-                  text_align: CENTER
-                  text_color: 0xFFFFFF
-    
+          - image:
+              src: Paris_image
+              align: CENTER
+              id: first_image
 
     - id: meter_page_1
       widgets:
