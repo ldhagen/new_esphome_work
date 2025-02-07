@@ -160,18 +160,16 @@ http_request:
   verify_ssl: False
 
 online_image:
-  #  - url: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png"
-  #- url: "http://homeassistant.local:8123/local/test1.png"
   - url: "http://homeassistant.local:8123/local/Paris800_480.png"
     format: png
     id: my_online_image
     type: RGB565
     resize: 800x480
     on_download_finished:
-      #  component.update: my_display
       lvgl.image.update:
         id: first_image
         src: my_online_image
+
 
 display:
   - platform: rpi_dpi_rgb
@@ -230,7 +228,7 @@ display:
 
 image:
   - file: bulb.png
-    id: Paris_image
+    id: bulb_image
     resize: 750x420
     type: RGB565
 
@@ -241,7 +239,7 @@ lvgl:
     - id: main_page      
       widgets:
           - image:
-              src: Paris_image
+              src: bulb_image
               align: CENTER
               id: first_image
 
