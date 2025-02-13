@@ -728,10 +728,6 @@ sensor:
     entity_id: sensor.cloudcovercurrent
 
   - platform: homeassistant
-    id: weatherforecastd1
-    entity_id: sensor.weather_forecast_d1
-
-  - platform: homeassistant
     id: tempforecastd1
     entity_id: sensor.temperature_forecast_d1
       
@@ -741,24 +737,22 @@ sensor:
 
 text_sensor:
   - platform: version
-    name: "ESPHome Version" 
+    id: esphome_version
+    name: "ESPHome Version"
+
   - platform: template
     name: 'Last Restart'
     id: device_last_restart
     icon: mdi:clock
     entity_category: diagnostic
 
-binary_sensor:
-  - platform: status
-    name: "Status"
-    entity_category: diagnostic
- 
-# Restart & Safe Mode Buttons
-button:
-  - platform: restart
-    name: "Restart Device"
-  - platform: safe_mode
-    name: "Restart in Safe Mode"  
+  - platform: homeassistant
+    id: weatherforecastd1
+    entity_id: sensor.weather_forecast_d1
+
+  - platform: homeassistant
+    id: extraweatherforecastd1
+    entity_id: input_text.text_nws_extra_forecast
 
 web_server:
   port: 80
