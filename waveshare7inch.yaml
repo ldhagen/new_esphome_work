@@ -523,8 +523,15 @@ lvgl:
                   styles: date_style
                   y: 50
 
-
-
+    - id: test1_page
+      width: 100%
+      bg_color: Green
+      widgets:
+        - label:
+            align: CENTER
+            y: 20
+            text_font: montserrat_44
+            text: 'Lance Rules! Yes he does...'
 
   top_layer:
     widgets:
@@ -659,10 +666,6 @@ lvgl:
 
 
 sensor:
-  - platform: wifi_signal
-    name: "Waveshare 7 Inch Signal Sensor"
-    update_interval: 60s
-
   - platform: homeassistant
     id: inside_temperature
     entity_id: sensor.devtest2_bme280_temperature_devtest2
@@ -753,6 +756,13 @@ text_sensor:
   - platform: homeassistant
     id: extraweatherforecastd1
     entity_id: input_text.text_nws_extra_forecast
+
+# Restart & Safe Mode Buttons
+button:
+  - platform: restart
+    name: "Restart Device"
+  - platform: safe_mode
+    name: "Restart in Safe Mode"      
 
 web_server:
   port: 80
