@@ -528,9 +528,10 @@ lvgl:
       bg_color: Green
       widgets:
         - label:
+            id: current_weather_label
             align: CENTER
             y: 20
-            text_font: montserrat_44
+            text_font: montserrat_20
             text: 'Lance Rules! Yes he does...'
 
   top_layer:
@@ -756,6 +757,15 @@ text_sensor:
   - platform: homeassistant
     id: extraweatherforecastd1
     entity_id: input_text.text_nws_extra_forecast
+    on_value: 
+      then:
+        lvgl.label.update:
+          id: current_weather_label
+          text: !lambda return x.c_str();
+
+
+
+
 
 # Restart & Safe Mode Buttons
 button:
