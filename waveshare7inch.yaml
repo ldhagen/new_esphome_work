@@ -525,12 +525,30 @@ lvgl:
 
     - id: test1_page
       width: 100%
-      bg_color: Green
+      bg_color: Silver
       widgets:
         - label:
+            id: current_weather_label_dt0
+            y: 40
+            long_mode: WRAP  
+            text_font: montserrat_10
+            text: 'Lance Rules! Yes he does...'
+        - label:
             id: current_weather_label
-            align: CENTER
-            y: 20
+            y: 50
+            long_mode: WRAP  
+            text_font: montserrat_20
+            text: 'Lance Rules! Yes he does...'
+        - label:
+            id: current_weather_label_1
+            y: 90
+            long_mode: WRAP  
+            text_font: montserrat_20
+            text: 'Lance Rules! Yes he does...'
+        - label:
+            id: current_weather_label_2
+            y: 130
+            long_mode: WRAP  
             text_font: montserrat_20
             text: 'Lance Rules! Yes he does...'
 
@@ -755,12 +773,39 @@ text_sensor:
     entity_id: sensor.weather_forecast_d1
 
   - platform: homeassistant
-    id: extraweatherforecastd1
+    id: extraweatherforecast0
     entity_id: input_text.text_nws_extra_forecast
     on_value: 
       then:
         lvgl.label.update:
           id: current_weather_label
+          text: !lambda return x.c_str();
+
+  - platform: homeassistant
+    id: extraweatherdatetime0
+    entity_id: input_text.text_nws_extra_datetime_0
+    on_value: 
+      then:
+        lvgl.label.update:
+          id: current_weather_label_dt0
+          text: !lambda return x.c_str();
+
+  - platform: homeassistant
+    id: extraweatherforecast1
+    entity_id: input_text.text_nws_extra_forecast_1
+    on_value: 
+      then:
+        lvgl.label.update:
+          id: current_weather_label_1
+          text: !lambda return x.c_str();
+
+  - platform: homeassistant
+    id: extraweatherforecast2
+    entity_id: input_text.text_nws_extra_forecast_2
+    on_value: 
+      then:
+        lvgl.label.update:
+          id: current_weather_label_2
           text: !lambda return x.c_str();
 
 
