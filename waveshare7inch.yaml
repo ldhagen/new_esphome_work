@@ -529,26 +529,61 @@ lvgl:
       widgets:
         - label:
             id: current_weather_label_dt0
-            y: 40
-            long_mode: WRAP  
-            text_font: montserrat_10
+            x: 70  
+            y: 20
+            text_font: montserrat_20
             text: 'Lance Rules! Yes he does...'
-        - label:
+        - textarea:
             id: current_weather_label
-            y: 50
-            long_mode: WRAP  
+            x: 40  
+            y: 40
+            height: 170
+            width: 320
             text_font: montserrat_20
             text: 'Lance Rules! Yes he does...'
+
         - label:
+            id: current_weather_label_dt1
+            x: 460  
+            y: 20
+            text_font: montserrat_20
+            text: 'Lance Rules! Yes he does...'
+        - textarea:
             id: current_weather_label_1
-            y: 90
-            long_mode: WRAP  
+            x: 440  
+            y: 40
+            height: 170
+            width: 320
             text_font: montserrat_20
             text: 'Lance Rules! Yes he does...'
+
         - label:
+            id: current_weather_label_dt2
+            x: 70
+            y: 240
+            text_font: montserrat_20
+            text: 'Lance Rules! Yes he does...'
+        - textarea:
             id: current_weather_label_2
-            y: 130
-            long_mode: WRAP  
+            x: 40  
+            y: 260
+            height: 170
+            width: 320
+            text_font: montserrat_20
+            text: 'Lance Rules! Yes he does...'
+
+        - label:
+            id: current_weather_label_dt3
+            x: 460  
+            y: 240
+            text_font: montserrat_20
+            text: 'Lance Rules! Yes he does...'
+        - textarea:
+            id: current_weather_label_3
+            x: 440  
+            y: 260
+            height: 170
+            width: 320
             text_font: montserrat_20
             text: 'Lance Rules! Yes he does...'
 
@@ -780,7 +815,6 @@ text_sensor:
         lvgl.label.update:
           id: current_weather_label
           text: !lambda return x.c_str();
-
   - platform: homeassistant
     id: extraweatherdatetime0
     entity_id: input_text.text_nws_extra_datetime_0
@@ -798,6 +832,14 @@ text_sensor:
         lvgl.label.update:
           id: current_weather_label_1
           text: !lambda return x.c_str();
+  - platform: homeassistant
+    id: extraweatherdatetime1
+    entity_id: input_text.text_nws_extra_datetime_1
+    on_value: 
+      then:
+        lvgl.label.update:
+          id: current_weather_label_dt1
+          text: !lambda return x.c_str();
 
   - platform: homeassistant
     id: extraweatherforecast2
@@ -807,8 +849,32 @@ text_sensor:
         lvgl.label.update:
           id: current_weather_label_2
           text: !lambda return x.c_str();
+  - platform: homeassistant
+    id: extraweatherdatetime2
+    entity_id: input_text.text_nws_extra_datetime_2
+    on_value: 
+      then:
+        lvgl.label.update:
+          id: current_weather_label_dt2
+          text: !lambda return x.c_str();
 
 
+  - platform: homeassistant
+    id: extraweatherforecast3
+    entity_id: input_text.text_nws_extra_forecast_3
+    on_value: 
+      then:
+        lvgl.label.update:
+          id: current_weather_label_3
+          text: !lambda return x.c_str();
+  - platform: homeassistant
+    id: extraweatherdatetime3
+    entity_id: input_text.text_nws_extra_datetime_3
+    on_value: 
+      then:
+        lvgl.label.update:
+          id: current_weather_label_dt3
+          text: !lambda return x.c_str();
 
 
 
