@@ -812,7 +812,7 @@ text_sensor:
     entity_id: input_text.text_nws_extra_forecast
     on_value: 
       then:
-        lvgl.label.update:
+        lvgl.textarea.update:
           id: current_weather_label
           text: !lambda return x.c_str();
   - platform: homeassistant
@@ -829,7 +829,7 @@ text_sensor:
     entity_id: input_text.text_nws_extra_forecast_1
     on_value: 
       then:
-        lvgl.label.update:
+        lvgl.textarea.update:
           id: current_weather_label_1
           text: !lambda return x.c_str();
   - platform: homeassistant
@@ -846,7 +846,7 @@ text_sensor:
     entity_id: input_text.text_nws_extra_forecast_2
     on_value: 
       then:
-        lvgl.label.update:
+        lvgl.textarea.update:
           id: current_weather_label_2
           text: !lambda return x.c_str();
   - platform: homeassistant
@@ -864,7 +864,7 @@ text_sensor:
     entity_id: input_text.text_nws_extra_forecast_3
     on_value: 
       then:
-        lvgl.label.update:
+        lvgl.textarea.update:
           id: current_weather_label_3
           text: !lambda return x.c_str();
   - platform: homeassistant
