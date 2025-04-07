@@ -452,7 +452,7 @@ lvgl:
                         id: barometer_needle
                         width: 2
                         color: 0xFF0000
-                        r_mod: -4
+                        r_mod: -12
                     - tick_style:
                         start_value: 28
                         end_value: 31
@@ -465,7 +465,7 @@ lvgl:
                   rotation: 150
                   ticks:
                     width: 1
-                    count: 30
+                    count: 31
                     length: 10
                     color: 0x000000
                     major:
@@ -478,12 +478,14 @@ lvgl:
 
 
           - label:
+              styles: date_style
               id: barometer_text
               text: "      inHg"
               align: CENTER
               y: 85
 
           - label:
+              styles: date_style
               text: "Barometer"
               align: CENTER
               y: 65
