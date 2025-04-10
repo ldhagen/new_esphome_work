@@ -425,6 +425,63 @@ lvgl:
                     align: CENTER
                     y: 65
 
+
+    - id: meter_page_3
+      width: 100%
+      bg_color: Black      
+      widgets:
+          - meter:
+              align: CENTER
+              height: 400
+              width: 400
+              scales:
+                - range_from: 280  # 28.00 inHg (scaled by 100)
+                  range_to: 310    # 31.00 inHg
+                  angle_range: 240
+                  rotation: 150
+                  indicators:
+                    - line:
+                        id: barometer_needle
+                        width: 2
+                        color: 0xFF0000
+                        r_mod: -12
+                    - tick_style:
+                        start_value: 28
+                        end_value: 31
+                        color_start: 0x0000bd
+                        color_end: 0xbd0000
+                        width: 1
+                - range_from: 28 # scale for the value labels
+                  range_to: 31
+                  angle_range: 240
+                  rotation: 150
+                  ticks:
+                    width: 1
+                    count: 31
+                    length: 10
+                    color: 0x000000
+                    major:
+                      stride: 10
+                      width: 2
+                      length: 10
+                      color: 0x404040
+                      label_gap: 1
+
+
+          - label:
+              styles: date_style
+              id: barometer_text
+              text: "      inHg"
+              align: CENTER
+              y: 85
+
+          - label:
+              styles: date_style
+              text: "Barometer"
+              align: CENTER
+              y: 65
+
+
     - id: clock_page
       width: 100%
       bg_color: Black
@@ -860,6 +917,15 @@ sensor:
   - platform: homeassistant
     id: barometer_pressure
     entity_id: sensor.pressurecurrent
+    on_value:   
+      - lvgl.indicator.update:
+          id: barometer_needle
+          value: !lambda return x * 10;
+      - lvgl.label.update:
+          id: barometer_text
+          text:
+            format: "%.1finHG"
+            args: [ 'x' ]      
 
   - platform: homeassistant
     id: dewpoint
