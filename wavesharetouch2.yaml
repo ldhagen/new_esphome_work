@@ -20,6 +20,11 @@ api:
   encryption:
     key: "M+pj68JlKsXlPN6CoAYVv5XD2A0gr98lyEh6jTEGyHM="
 
+  services:
+    - service: previous_page
+      then:
+        - lvgl.page.previous:
+
 ota:
   - platform: esphome
     password: "f8305abcda66043e955d23d0cefcd524"
@@ -722,7 +727,5 @@ web_server:
   port: 80
   include_internal: True
   version: 3
-    
 
 captive_portal:
-    
