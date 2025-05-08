@@ -37,6 +37,12 @@ api:
   encryption:
     key: "AIVcSJre4VDwfHstCkkhxkilrCNsO9sJMXEGRMJl5Ic="
 
+  services:
+    - service: previous_page
+      then:
+        - lvgl.page.previous:
+
+
 ota:
   - platform: esphome
     password: "5938816d31d547c3fc3f7d2db85070ae"
