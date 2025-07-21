@@ -4,7 +4,8 @@ esphome:
 esp32:
   board: esp32dev
   framework:
-    type: arduino
+    type: esp-idf
+    
 
 # Enable logging
 logger:
@@ -36,13 +37,66 @@ i2c:
 sensor:  
   - platform: aht10
     temperature:
-      name: "Sewing Room AHT10 Temperature"
+      name: "Sewing Room AHT10 Temperature"      
+      filters:
+        - lambda: return x * 1.8 + 32.0;  # Convert Celsius to Fahrenheit
+      unit_of_measurement: "°F"
+      accuracy_decimals: 1
+
     humidity:
       name: "Sewing Room AHT10 Humidity"
     update_interval: 60s
+  - platform: wifi_signal
+    name: "WiFi Signal Sensor"
+    update_interval: 60s
+
+  - platform: uptime
+    type: seconds
+    name: Uptime Sensor
+
+
+text_sensor:
+  - platform: version
+    id: esphome_version
+    name: "ESPHome Version"
+
+  - platform: template
+    name: 'Last Restart'
+    id: device_last_restart
+    icon: mdi:clock
+    entity_category: diagnostic
+
+binary_sensor:
+  - platform: status
+    name: "Status"
+    entity_category: diagnostic
+    
+# Restart & Safe Mode Buttons
+button:
+  - platform: restart
+    name: "Restart Device"
+  - platform: safe_mode
+    name: "Restart in Safe Mode"      
+
+
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+    timezone: America/Chicago
+    on_time_sync:
+      - if:
+          condition:
+            lambda: 'return id(device_last_restart).state == "";'
+          then:
+            - text_sensor.template.publish:
+                id: device_last_restart
+                state: !lambda 'return id(homeassistant_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'
 
 web_server:
   port: 80
+  include_internal: True
+  version: 3
 
 
 captive_portal:
