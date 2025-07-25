@@ -13,15 +13,16 @@ esp32:
   board: esp32-s3-devkitc-1
   framework:
     type: esp-idf
-    platform_version: 6.8.1
-    version: 5.3.0
-    sdkconfig_options:
-      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"
-      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
-      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: y
-      CONFIG_SPIRAM_RODATA: y    
-    
+#    platform_version: 6.8.1
+#    version: 5.3.0
+#    sdkconfig_options:
+#      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"
+#      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
+#      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: y
+#      CONFIG_SPIRAM_RODATA: y    
+#    
 # Enable Home Assistant API
+
 api:
   encryption:
     key: "M+pj68JlKsXlPN6CoAYVv5XD2A0gr98lyEh6jTEGyHM="
@@ -61,7 +62,7 @@ psram:
 
 # Enable logging
 logger:
-  level: DEBUG
+  level: VERBOSE
 
 i2c:
   sda: GPIO08
@@ -70,16 +71,9 @@ i2c:
   id: bus_a
 
 
-external_components:
-
-  # CH422G I/O Expander
-  # https://github.com/esphome/esphome/pull/7356
-  - source: github://pr#7356
-    components: [ch422g]
 
 ch422g:
-  - id: io_ex
-    address: 0x24
+  - id: ch422g_hub
 
 # Toggles backlight of Waveshare ESP32-S3-Touch-LCD-4.3
 switch:
@@ -87,7 +81,7 @@ switch:
     name: "Backlight Toggle"
     id: backlight_switch      
     pin: 
-      ch422g: io_ex
+      ch422g: ch422g_hub
       number: 2
         #      allow_other_uses: true
 # CH422G saves the last state internally, but gpio switch sets state as off except when using RESTORE_ modes
@@ -217,7 +211,7 @@ image:
     type: RGB565          
 
 lvgl:
-  buffer_size: 25%
+  buffer_size: 100%
   pages:
     - id: main_page
       widgets:
@@ -728,6 +722,13 @@ button:
     name: "Restart Device"
   - platform: safe_mode
     name: "Restart in Safe Mode"
+
+  - platform: template
+    name: "Next Page"
+    on_press:
+      then:
+        - lvgl.page.next
+
 
 web_server:
   port: 80
