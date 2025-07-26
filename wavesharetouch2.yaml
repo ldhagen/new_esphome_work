@@ -20,9 +20,19 @@ esp32:
 #      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
 #      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: y
 #      CONFIG_SPIRAM_RODATA: y    
+
+globals:
+  - id: total_psram
+    type: int
+    initial_value: '8388608'  # 8MB PSRAM
+
+  - id: total_heap
+    type: int
+    initial_value: '524288'  # 512KB SRAM
+
+
 #    
 # Enable Home Assistant API
-
 api:
   encryption:
     key: "M+pj68JlKsXlPN6CoAYVv5XD2A0gr98lyEh6jTEGyHM="
@@ -63,6 +73,10 @@ psram:
 # Enable logging
 logger:
   level: VERBOSE
+
+debug:
+  update_interval: 10s
+
 
 i2c:
   sda: GPIO08
@@ -640,11 +654,32 @@ text_sensor:
   - platform: version
     id: esphome_version
     name: "ESPHome Version"
+
   - platform: template
     name: 'Last Restart'
     id: device_last_restart
     icon: mdi:clock
     entity_category: diagnostic
+
+  - platform: template
+    name: "Heap Usage %"
+    lambda: |-
+      size_t free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+      int used = id(total_heap) - free;
+      int percent = (used * 100) / id(total_heap);
+      return to_string(percent) + "%";
+    update_interval: 30s
+
+
+
+  - platform: template
+    name: "PSRAM Usage %"
+    lambda: |-
+      size_t free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+      size_t used = id(total_psram) - free;
+      int percent = (used * 100) / id(total_psram);
+      return to_string(percent) + "%";
+    update_interval: 30s
 
 binary_sensor:
   - platform: status
@@ -715,6 +750,14 @@ sensor:
   - platform: homeassistant
     id: barometer_pressure
     entity_id: sensor.pressurecurrent
+
+
+
+  - platform: debug
+    free:
+      name: "Heap Free"
+    psram:
+      name: "Free PSRAM"
  
 # Restart & Safe Mode Buttons
 button:
@@ -728,7 +771,6 @@ button:
     on_press:
       then:
         - lvgl.page.next
-
 
 web_server:
   port: 80
