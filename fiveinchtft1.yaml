@@ -757,8 +757,23 @@ sensor:
 button:
   - platform: restart
     name: "Restart Device"
+
   - platform: safe_mode
     name: "Restart in Safe Mode"
+
+  - platform: template
+    name: "Next Page"
+    on_press:
+      then:
+        - lvgl.page.next
+
+
+  - platform: template
+    name: "Previous Page"
+    on_press:
+      then:
+        - lvgl.page.previous
+      
 
 web_server:
   port: 80
