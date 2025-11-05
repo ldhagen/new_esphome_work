@@ -7,10 +7,8 @@ esp32:
   framework:
     type: esp-idf
 
-# Enable logging
 logger:
 
-# Enable Home Assistant API
 api:
   encryption:
     key: "sptBK8w6ZAhtEPI/S5X7BuHFoLi7u6IqG6pJVPU9g3s="
@@ -27,19 +25,19 @@ globals:
   - id: recorded_display_refresh
     type: int
     restore_value: yes
-    initial_value: '0'    
-
+    initial_value: '0'
+  - id: last_refresh_time
+    type: std::string
+    restore_value: yes
+    initial_value: '"Never"'
 
 time:
   - platform: homeassistant
     id: homeassistant_time
-          
 
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
-
-  # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
     ssid: "Epaper1 Fallback Hotspot"
     password: "3DNTqSHQmojf"
@@ -48,7 +46,6 @@ spi:
   clk_pin: GPIO8
   mosi_pin: GPIO10
 
-# Font definitions
 font:
   - file: "gfonts://Roboto"
     id: font_large
@@ -71,10 +68,19 @@ display:
     update_interval: 600s
     rotation: 0
     lambda: |-
-      // Default display content
+      // Increment refresh counter
+      id(recorded_display_refresh) += 1;
+      
+      // Update last refresh time
+      auto now = id(homeassistant_time).now();
+      if (now.is_valid()) {
+        id(last_refresh_time) = now.strftime("%Y-%m-%d %H:%M:%S");
+      } else {
+        id(last_refresh_time) = "Time not available";
+      }
+      
+      // Display content
       it.printf(10, 10, id(font_large), "Lance Rules!");
-
-
 
 sensor:
   - platform: wifi_signal
@@ -82,39 +88,35 @@ sensor:
     update_interval: 60s
 
   - platform: uptime
-    type: seconds
-    name: Uptime Sensor
-    
-
+    name: "Uptime Seconds"
 
   - platform: uptime
-    name: Uptime
+    name: "Uptime"
 
   - platform: internal_temperature
     name: "Internal Temperature"
 
-   
-
-
 text_sensor:
   - platform: version
-    id: esphome_version
     name: "ESPHome Version"
 
   - platform: template
     name: 'Last Restart'
-    id: device_last_restart
     icon: mdi:clock
     entity_category: diagnostic
 
   - platform: template
-      name: "Display Refresh Count"
-      accuracy_decimals: 0
-      unit_of_measurement: "Refreshes"
-      state_class: "total_increasing"
-      entity_category: "diagnostic"
-      lambda: 'return id(recorded_display_refresh) += 1;'
-    
+    name: "Display Refresh Count"
+    lambda: |-
+      return to_string(id(recorded_display_refresh));
+
+  - platform: template
+    name: "Last Display Refresh"
+    icon: mdi:update
+    entity_category: diagnostic
+    lambda: |-
+      return id(last_refresh_time);
+
 web_server:
   port: 80
   include_internal: True
@@ -122,9 +124,7 @@ web_server:
 
 captive_portal:
 
-
-# Here is deep sleep part
 deep_sleep:
   id: deep_sleep_1
-  run_duration: 1min  # Device wake up and run 60s (enough to pull data and update)
-  sleep_duration: 30min  # deep sleep for 30m
+  run_duration: 1min
+  sleep_duration: 30min
