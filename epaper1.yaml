@@ -46,6 +46,14 @@ spi:
   clk_pin: GPIO8
   mosi_pin: GPIO10
 
+# Add image component
+image:
+  - file: "binaryParis.png"
+    id: paris_image
+    type: binary
+    resize: 800x480  # Adjust if needed to match your display resolution
+    #invert_alpha: true
+
 font:
   - file: "gfonts://Roboto"
     id: font_large
@@ -79,8 +87,11 @@ display:
         id(last_refresh_time) = "Time not available";
       }
       
-      // Display content
-      it.printf(10, 10, id(font_large), "Lance Rules!");
+      // Display the Paris image
+      it.image(0, 0, id(paris_image));
+      it.line(0, 0, 800, 480);  
+      // Optional: You can still add text on top of the image if desired
+      // it.printf(10, 10, id(font_large), "Lance Rules!");
 
 sensor:
   - platform: wifi_signal
@@ -126,5 +137,5 @@ captive_portal:
 
 deep_sleep:
   id: deep_sleep_1
-  run_duration: 1min
+  run_duration: 5min
   sleep_duration: 30min
