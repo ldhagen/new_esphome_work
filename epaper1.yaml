@@ -121,7 +121,7 @@ display:
           it.filled_rectangle(x-2, y-2, cell_width-6, 25, COLOR_ON);
           
           // Day name (white text on black)
-          it.printf(x, y, id(font_medium), COLOR_OFF, TextAlign::TOP_LEFT, days[index]);
+          it.printf(x, y, id(roboto_bold_20), COLOR_OFF, TextAlign::TOP_LEFT, days[index]);
         }
       }
 
