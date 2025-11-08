@@ -31,10 +31,16 @@ globals:
     restore_value: yes
     initial_value: '"Never"'
 
+#time:
+  #- platform: homeassistant
+  #  id: homeassistant_time
 time:
-  - platform: homeassistant
-    id: homeassistant_time
-
+  - platform: sntp
+    id: local_time
+    servers:
+      - 0.pool.ntp.org
+      - 1.pool.ntp.org
+    timezone: "America/Chicago"  # Adjust for your timezone
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
@@ -82,7 +88,8 @@ display:
       id(recorded_display_refresh) += 1;
       
       // Update last refresh time
-      auto now = id(homeassistant_time).now();
+      //auto now = id(homeassistant_time).now();
+      auto now = id(local_time).now();
       if (now.is_valid()) {
         id(last_refresh_time) = now.strftime("%Y-%m-%d %H:%M:%S");
       } else {
@@ -168,7 +175,7 @@ web_server:
 
 captive_portal:
 
-deep_sleep:
-  id: deep_sleep_1
-  run_duration: 5min
-  sleep_duration: 30min
+#deep_sleep:
+# id: deep_sleep_1
+# run_duration: 5min
+# sleep_duration: 30min
