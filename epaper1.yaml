@@ -48,11 +48,10 @@ spi:
 
 # Add image component
 image:
-  - file: "binaryParis.png"
+  - file: "grayParis.png"
     id: paris_image
-    type: binary
-    resize: 800x480  # Adjust if needed to match your display resolution
-    #invert_alpha: true
+    type: grayscale
+    resize: 600x400  # Adjust if needed to match your display resolution
 
 font:
   - file: "gfonts://Roboto"
@@ -64,6 +63,9 @@ font:
   - file: "gfonts://Roboto"
     id: font_small
     size: 12
+  - file: "Roboto-Bold.ttf"
+    id: roboto_bold_20  # Give your font a unique ID
+    size: 20
 
 display:
   - platform: waveshare_epaper
@@ -88,10 +90,41 @@ display:
       }
       
       // Display the Paris image
-      it.image(0, 0, id(paris_image));
-      it.line(0, 0, 800, 480);  
+      //it.image(0, 0, id(paris_image));
+      
       // Optional: You can still add text on top of the image if desired
       // it.printf(10, 10, id(font_large), "Lance Rules!");
+
+       // Grid dimensions for 4x2 layout
+      int cell_width = it.get_width() / 4;    // 200px each
+      int cell_height = it.get_height() / 2;  // 200px each
+      
+      // Draw grid lines
+      for (int i = 1; i < 4; i++) {
+        it.line(i * cell_width, 0, i * cell_width, it.get_height());
+      }
+      it.line(0, cell_height, it.get_width(), cell_height);
+      
+      // Day names
+      const char* days[] = {"MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN", "NOTES"};
+            
+      for (int row = 0; row < 2; row++) {
+        for (int col = 0; col < 4; col++) {
+          int index = row * 4 + col;
+          if (index >= 8) break;
+          
+          int x = col * cell_width + 5;
+          int y = row * cell_height + 5;
+          int content_y = y + 30;
+          
+          // Day header background
+          it.filled_rectangle(x-2, y-2, cell_width-6, 25, COLOR_ON);
+          
+          // Day name (white text on black)
+          it.printf(x, y, id(font_medium), COLOR_OFF, TextAlign::TOP_LEFT, days[index]);
+        }
+      }
+
 
 sensor:
   - platform: wifi_signal
