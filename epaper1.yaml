@@ -73,8 +73,7 @@ font:
     id: roboto_bold_20  # Give your font a unique ID
     size: 20
 
-    
-
+  
 display:
   - platform: waveshare_epaper
     id: main_display
@@ -135,8 +134,6 @@ display:
       }
 
 
-
-
 sensor:
   - platform: wifi_signal
     name: "WiFi Signal Sensor"
@@ -151,56 +148,6 @@ sensor:
   - platform: internal_temperature
     name: "Internal Temperature"
   
-  
-  - platform: adc
-    pin: GPIO0  # Verify this is the correct ADC pin for your board
-    name: "Battery Voltage"
-    id: battery_voltage
-    unit_of_measurement: "V"
-    update_interval: 60s
-    filters:
-      - multiply: 2.0  # Start with this - you'll need to calibrate based on your voltage divider
-      - offset: 0.0    # Add if needed for calibration
-    accuracy_decimals: 2
-    entity_category: diagnostic
-    icon: "mdi:battery"
-    on_value:
-      then:
-        - lambda: |-
-            ESP_LOGD("battery", "Raw voltage: %.2fV", x);
-
-  - platform: template
-    name: "Battery Level"
-    id: battery_level
-    unit_of_measurement: "%"
-    update_interval: 60s
-    lambda: |-
-      if (!id(battery_voltage).has_state()) {
-        return NAN;
-      }
-      
-      float voltage = id(battery_voltage).state;
-      
-      // LiPo battery voltage characteristics
-      float min_voltage = 3.2;   // 0% - battery cutoff
-      float max_voltage = 4.2;   // 100% - fully charged
-      
-      // Handle out-of-range values
-      if (voltage <= min_voltage) return 0.0;
-      if (voltage >= max_voltage) return 100.0;
-      
-      // More accurate LiPo discharge curve approximation
-      float percentage = (voltage - min_voltage) / (max_voltage - min_voltage) * 100.0;
-      
-      // Optional: Add non-linear correction for better accuracy
-      if (percentage > 100.0) percentage = 100.0;
-      if (percentage < 0.0) percentage = 0.0;
-      
-      return percentage;
-    filters:
-      - round: 1
-    entity_category: diagnostic
-    icon: "mdi:battery"
 text_sensor:
   - platform: version
     name: "ESPHome Version"
@@ -222,6 +169,18 @@ text_sensor:
     lambda: |-
       return id(last_refresh_time);
       
+
+# Restart & Safe Mode Buttons
+button:
+  - platform: restart
+    name: "Restart Device"
+  - platform: safe_mode
+    name: "Restart in Safe Mode"
+
+binary_sensor:
+  - platform: status
+    name: "Status"
+    entity_category: diagnostic
 
 web_server:
   port: 80
