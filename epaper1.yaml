@@ -12,6 +12,20 @@ logger:
 api:
   encryption:
     key: "sptBK8w6ZAhtEPI/S5X7BuHFoLi7u6IqG6pJVPU9g3s="
+  services:
+    - service: set_deep_sleep_duration
+      variables:
+        duration: int
+      then:
+        - lambda: |-
+            if (duration >= 1 && duration <= 480) {
+              id(deep_sleep_duration_minutes) = duration;
+              id(deep_sleep_duration_setting).publish_state(duration);
+            }
+    - service: start_deep_sleep
+      then:
+        - lambda: |-
+            id(deep_sleep_pending) = true;
 
 ota:
   - platform: esphome
@@ -30,17 +44,23 @@ globals:
     type: std::string
     restore_value: yes
     initial_value: '"Never"'
+  - id: deep_sleep_duration_minutes
+    type: int
+    restore_value: yes
+    initial_value: '30'
+  - id: deep_sleep_pending
+    type: bool
+    restore_value: no
+    initial_value: 'false'
 
-#time:
-  #- platform: homeassistant
-  #  id: homeassistant_time
 time:
   - platform: sntp
     id: local_time
     servers:
       - 0.pool.ntp.org
       - 1.pool.ntp.org
-    timezone: "America/Chicago"  # Adjust for your timezone
+    timezone: "America/Chicago"
+
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
@@ -52,12 +72,11 @@ spi:
   clk_pin: GPIO8
   mosi_pin: GPIO10
 
-# Add image component
 image:
   - file: "grayParis.png"
     id: paris_image
     type: grayscale
-    resize: 600x400  # Adjust if needed to match your display resolution
+    resize: 600x400
 
 font:
   - file: "gfonts://Roboto"
@@ -70,17 +89,16 @@ font:
     id: font_small
     size: 12
   - file: "Roboto-Bold.ttf"
-    id: roboto_bold_20  # Give your font a unique ID
+    id: roboto_bold_20
     size: 20
 
-  
 display:
   - platform: waveshare_epaper
     id: main_display
     cs_pin: GPIO3
     dc_pin: GPIO5
     busy_pin: GPIO4
-    reset_pin: GPIO2
+    reset_pin: GPIO1  # Changed from GPIO2 to avoid strapping pin
     model: 7.50inv2
     update_interval: 600s
     rotation: 0
@@ -89,7 +107,6 @@ display:
       id(recorded_display_refresh) += 1;
       
       // Update last refresh time
-      //auto now = id(homeassistant_time).now();
       auto now = id(local_time).now();
       if (now.is_valid()) {
         id(last_refresh_time) = now.strftime("%Y-%m-%d %H:%M:%S");
@@ -97,15 +114,9 @@ display:
         id(last_refresh_time) = "Time not available";
       }
       
-      // Display the Paris image
-      //it.image(0, 0, id(paris_image));
-      
-      // Optional: You can still add text on top of the image if desired
-      // it.printf(10, 10, id(font_large), "Lance Rules!");
-
-       // Grid dimensions for 4x2 layout
-      int cell_width = it.get_width() / 4;    // 200px each
-      int cell_height = it.get_height() / 2;  // 200px each
+      // Grid dimensions for 4x2 layout
+      int cell_width = it.get_width() / 4;
+      int cell_height = it.get_height() / 2;
       
       // Draw grid lines
       for (int i = 1; i < 4; i++) {
@@ -133,6 +144,25 @@ display:
         }
       }
 
+deep_sleep:
+  id: deep_sleep_1
+  sleep_duration: 30min  # Default duration, will be overridden
+
+interval:
+  - interval: 100ms
+    then:
+      - if:
+          condition:
+            lambda: 'return id(deep_sleep_pending);'
+          then:
+            - logger.log:
+                format: "Starting deep sleep for %d minutes"
+                args: [ 'id(deep_sleep_duration_minutes)' ]
+            - lambda: |-
+                // Convert minutes to microseconds and set deep sleep duration
+                auto duration = id(deep_sleep_duration_minutes) * 60 * 1000000LL;
+                esp_sleep_enable_timer_wakeup(duration);
+                esp_deep_sleep_start();
 
 sensor:
   - platform: wifi_signal
@@ -147,15 +177,18 @@ sensor:
 
   - platform: internal_temperature
     name: "Internal Temperature"
-  
-text_sensor:
-  - platform: version
-    name: "ESPHome Version"
 
+text_sensor:
   - platform: template
     name: 'Last Restart'
     icon: mdi:clock
     entity_category: diagnostic
+    lambda: |-
+      auto now = id(local_time).now();
+      if (now.is_valid()) {
+        return now.strftime("%Y-%m-%d %H:%M:%S");
+      }
+      return std::string("Time not available");
 
   - platform: template
     name: "Display Refresh Count"
@@ -168,28 +201,50 @@ text_sensor:
     entity_category: diagnostic
     lambda: |-
       return id(last_refresh_time);
-      
 
-# Restart & Safe Mode Buttons
+number:
+  - platform: template
+    name: "Deep Sleep Duration"
+    id: deep_sleep_duration_setting
+    entity_category: config
+    icon: mdi:timer
+    min_value: 1
+    max_value: 480
+    step: 1
+    mode: box
+    lambda: |-
+      return id(deep_sleep_duration_minutes);
+    set_action:
+      then:
+        - lambda: |-
+            id(deep_sleep_duration_minutes) = static_cast<int>(x);
+
 button:
   - platform: restart
     name: "Restart Device"
+    
   - platform: safe_mode
     name: "Restart in Safe Mode"
+    
+  - platform: template
+    name: "Start Deep Sleep Now"
+    id: start_deep_sleep_now
+    entity_category: config
+    icon: mdi:sleep
+    on_press:
+      then:
+        - lambda: |-
+            id(deep_sleep_pending) = true;
 
 binary_sensor:
   - platform: status
     name: "Status"
     entity_category: diagnostic
 
+# Web Server Configuration - Basic version
 web_server:
   port: 80
-  include_internal: True
+  include_internal: true
   version: 3
-
+  
 captive_portal:
-
-#deep_sleep:
-# id: deep_sleep_1
-# run_duration: 5min
-# sleep_duration: 30min
