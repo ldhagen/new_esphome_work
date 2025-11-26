@@ -1,18 +1,6 @@
 esphome:
   name: epaper1
   friendly_name: epaper1
-  # Add this to your existing epaper1.yaml
-  on_boot:
-    - priority: 600  # Run after WiFi is connected
-      then:
-        - delay: 5s  # Wait for stable connection
-        - component.update: main_display
-        - homeassistant.event:
-            event: esphome.epaper_wake_up
-            data:
-              device: epaper1
-              wake_reason: "deep_sleep"
-
 
 esp32:
   board: esp32-c3-devkitm-1
@@ -20,25 +8,12 @@ esp32:
     type: esp-idf
 
 logger:
+  level: VERBOSE
 
 api:
   encryption:
     key: "sptBK8w6ZAhtEPI/S5X7BuHFoLi7u6IqG6pJVPU9g3s="
   services:
-    - service: set_deep_sleep_duration
-      variables:
-        duration: int
-      then:
-        - lambda: |-
-            if (duration >= 1 && duration <= 480) {
-              id(deep_sleep_duration_minutes) = duration;
-              id(deep_sleep_duration_setting).publish_state(duration);
-            }
-    - service: start_deep_sleep
-      then:
-        - lambda: |-
-            id(deep_sleep_pending) = true;
-
     - service: refresh_display
       then:
         - component.update: main_display
@@ -90,12 +65,6 @@ wifi:
 spi:
   clk_pin: GPIO8
   mosi_pin: GPIO10
-
-image:
-  - file: "grayParis.png"
-    id: paris_image
-    type: grayscale
-    resize: 600x400
 
 font:
   - file: "gfonts://Roboto"
@@ -241,26 +210,9 @@ display:
       it.printf(5, it.get_height() - 15, id(font_small), COLOR_ON, TextAlign::TOP_LEFT, 
                 "Refresh: %d", id(recorded_display_refresh));
 
-deep_sleep:
-  id: deep_sleep_1
-  sleep_duration: 30min  # Default duration, will be overridden
 
-interval:
-  - interval: 100ms
-    then:
-      - if:
-          condition:
-            lambda: 'return id(deep_sleep_pending);'
-          then:
-            - logger.log:
-                format: "Starting deep sleep for %d minutes"
-                args: [ 'id(deep_sleep_duration_minutes)' ]
-            - lambda: |-
-                // Convert minutes to microseconds and set deep sleep duration
-                auto duration = id(deep_sleep_duration_minutes) * 60 * 1000000LL;
-                esp_sleep_enable_timer_wakeup(duration);
-                esp_deep_sleep_start();
-  
+
+interval:  
   - interval: 30s
     then:
       - lambda: |-
@@ -338,22 +290,6 @@ text_sensor:
     entity_id: input_text.meal_notes
 
 
-number:
-  - platform: template
-    name: "Deep Sleep Duration"
-    id: deep_sleep_duration_setting
-    entity_category: config
-    icon: mdi:timer
-    min_value: 1
-    max_value: 480
-    step: 1
-    mode: box
-    lambda: |-
-      return id(deep_sleep_duration_minutes);
-    set_action:
-      then:
-        - lambda: |-
-            id(deep_sleep_duration_minutes) = static_cast<int>(x);
 
 button:
   - platform: restart
@@ -362,15 +298,6 @@ button:
   - platform: safe_mode
     name: "Restart in Safe Mode"
     
-  - platform: template
-    name: "Start Deep Sleep Now"
-    id: start_deep_sleep_now
-    entity_category: config
-    icon: mdi:sleep
-    on_press:
-      then:
-        - lambda: |-
-            id(deep_sleep_pending) = true;
 
 binary_sensor:
   - platform: status
