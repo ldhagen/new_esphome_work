@@ -71,8 +71,11 @@ font:
     id: font_large
     size: 96
   - file: "gfonts://Roboto"
+    id: font_big
+    size: 36
+  - file: "gfonts://Roboto"
     id: font_medium
-    size: 16
+    size: 24
   - file: "gfonts://Roboto"
     id: font_small
     size: 12
@@ -176,10 +179,10 @@ display:
           }
           
           // Display meal text with wrapping
-          int max_chars_per_line = 18;
+          int max_chars_per_line = 10;
           if (meal_text.length() <= max_chars_per_line) {
             // Single line
-            it.printf(x, content_y, id(font_medium), COLOR_ON, TextAlign::TOP_LEFT, meal_text.c_str());
+            it.printf(x, content_y, id(font_big), COLOR_ON, TextAlign::TOP_LEFT, meal_text.c_str());
           } else {
             // Two lines - find a good break point
             int break_point = max_chars_per_line;
@@ -197,9 +200,9 @@ display:
             while (!line1.empty() && line1.back() == ' ') line1.pop_back();
             while (!line2.empty() && line2.front() == ' ') line2 = line2.substr(1);
             
-            it.printf(x, content_y, id(font_small), COLOR_ON, TextAlign::TOP_LEFT, line1.c_str());
+            it.printf(x, content_y, id(font_medium), COLOR_ON, TextAlign::TOP_LEFT, line1.c_str());
             if (!line2.empty()) {
-              it.printf(x, content_y + 15, id(font_small), COLOR_ON, TextAlign::TOP_LEFT, line2.c_str());
+              it.printf(x, content_y + 25, id(font_medium), COLOR_ON, TextAlign::TOP_LEFT, line2.c_str());
             }
           }
         }
