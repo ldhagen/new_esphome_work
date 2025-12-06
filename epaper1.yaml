@@ -1,6 +1,18 @@
 esphome:
   name: epaper1
   friendly_name: epaper1
+  
+  # Add initialization delay and display refresh on boot
+  on_boot:
+    then:
+      # First, delay for 5 seconds for display initialization
+      - delay: 5s
+      - lambda: |-
+          ESP_LOGI("main", "Display initialization complete.");
+      # Then, update the display
+      - component.update: main_display
+      - lambda: |-
+          ESP_LOGI("main", "Device booted, refreshing display.");
 
 esp32:
   board: esp32-c3-devkitm-1
@@ -20,7 +32,6 @@ api:
         - lambda: |-
             ESP_LOGI("main", "Manual display refresh triggered");
 
-
 ota:
   - platform: esphome
     password: "8b483b284d5c3ce12c98f7568297577b"
@@ -38,14 +49,6 @@ globals:
     type: std::string
     restore_value: yes
     initial_value: '"Never"'
-  - id: deep_sleep_duration_minutes
-    type: int
-    restore_value: yes
-    initial_value: '30'
-  - id: deep_sleep_pending
-    type: bool
-    restore_value: no
-    initial_value: 'false'
 
 time:
   - platform: sntp
@@ -83,18 +86,16 @@ font:
     id: roboto_bold_20
     size: 20
 
-    
-
 display:
   - platform: waveshare_epaper
     id: main_display
     cs_pin: GPIO3
     dc_pin: GPIO5
     busy_pin: GPIO4
-    reset_pin: GPIO1
+    reset_pin: GPIO1  # GPIO1 is used for display reset
     model: 7.50inv2
-    update_interval: 30s
     rotation: 0
+    update_interval: 30s  # Auto-refresh every 30 seconds
     lambda: |-
       // Increment refresh counter
       id(recorded_display_refresh) += 1;
@@ -119,10 +120,6 @@ display:
       
       // Day names and meals
       const char* days[] = {"MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN", "NOTES"};
-      const char* meal_ids[] = {
-        "meal_mon", "meal_tue", "meal_wed", "meal_thu", 
-        "meal_fri", "meal_sat", "meal_sun", "meal_notes"
-      };
             
       for (int row = 0; row < 2; row++) {
         for (int col = 0; col < 4; col++) {
@@ -168,7 +165,7 @@ display:
               break;
           }
           
-          // Clean up meal text - remove any extra quotes or spaces
+          // Clean up meal text
           if (meal_text == "null" || meal_text.empty()) {
             meal_text = "   ";
           }
@@ -208,18 +205,30 @@ display:
         }
       }
 
-
       // Debug info (small text at bottom)
       it.printf(5, it.get_height() - 15, id(font_small), COLOR_ON, TextAlign::TOP_LEFT, 
                 "Refresh: %d", id(recorded_display_refresh));
+                
+      // Log refresh completion
+      ESP_LOGI("main", "Display refresh completed. Total refreshes: %d", id(recorded_display_refresh));
 
+# REMOVED: switch section causing pin conflict
 
-
-interval:  
+interval:
+  # Regular display refreshes every 30 seconds (as backup to update_interval)
   - interval: 30s
     then:
       - lambda: |-
-          ESP_LOGD("main", "Meal MON: %s", id(meal_mon).state.c_str());
+          ESP_LOGI("main", "30s interval: Refreshing display");
+      - component.update: main_display
+  
+  # Log status every minute
+  - interval: 60s
+    then:
+      - lambda: |-
+          ESP_LOGI("main", "Status - Uptime: %ds, Refreshes: %d", 
+                   id(uptime_sensor).state, 
+                   id(recorded_display_refresh));
 
 sensor:
   - platform: wifi_signal
@@ -227,7 +236,9 @@ sensor:
     update_interval: 60s
 
   - platform: uptime
+    id: uptime_sensor
     name: "Uptime Seconds"
+    update_interval: 10s
 
   - platform: uptime
     name: "Uptime"
@@ -292,8 +303,6 @@ text_sensor:
     id: meal_notes
     entity_id: input_text.meal_notes
 
-
-
 button:
   - platform: restart
     name: "Restart Device"
@@ -301,13 +310,20 @@ button:
   - platform: safe_mode
     name: "Restart in Safe Mode"
     
+  - platform: template
+    name: "Refresh Display Now"
+    icon: mdi:refresh
+    on_press:
+      then:
+        # Just refresh the display (no hardware reset since GPIO1 is already used)
+        - component.update: main_display
+        - logger.log: "Manual display refresh triggered"
 
 binary_sensor:
   - platform: status
     name: "Status"
     entity_category: diagnostic
 
-# Web Server Configuration - Basic version
 web_server:
   port: 80
   include_internal: true
