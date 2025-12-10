@@ -221,7 +221,7 @@ display:
     cs_pin: GPIO3
     dc_pin: GPIO5
     busy_pin: GPIO4
-    reset_pin: GPIO2  # CRITICAL: Changed from GPIO1 to GPIO2
+    reset_pin: GPIO2
     model: 7.50inv2
     rotation: 0
     update_interval: 30s
@@ -241,6 +241,7 @@ display:
         
         int cell_width = it.get_width() / 4;
         int cell_height = it.get_height() / 2;
+        int max_content_width = cell_width - 10;  // 5px padding on each side
         
         // Draw grid lines
         for (int i = 1; i < 4; i++) {
@@ -283,28 +284,85 @@ display:
               meal_text = meal_text.substr(1, meal_text.length() - 2);
             }
             
-            int max_chars_per_line = 10;
-            if (meal_text.length() <= max_chars_per_line) {
-              it.printf(x, content_y, id(font_big), COLOR_ON, TextAlign::TOP_LEFT, meal_text.c_str());
-            } else {
-              int break_point = max_chars_per_line;
-              for (int i = max_chars_per_line; i > max_chars_per_line - 8; i--) {
-                if (i < meal_text.length() && meal_text[i] == ' ') {
-                  break_point = i;
+            // Simple word wrap function without stringstream
+            auto wrap_text_at_spaces = [](const std::string& text, int max_chars) -> std::vector<std::string> {
+              std::vector<std::string> lines;
+              std::vector<std::string> words;
+              
+              // Split text into words manually
+              std::string word;
+              for (char c : text) {
+                if (c == ' ') {
+                  if (!word.empty()) {
+                    words.push_back(word);
+                    word.clear();
+                  }
+                } else {
+                  word.push_back(c);
+                }
+              }
+              if (!word.empty()) {
+                words.push_back(word);
+              }
+              
+              // Build lines from words
+              std::string current_line;
+              for (const std::string& w : words) {
+                if (current_line.empty()) {
+                  current_line = w;
+                } else if (current_line.length() + 1 + w.length() <= max_chars) {
+                  current_line += " " + w;
+                } else {
+                  lines.push_back(current_line);
+                  current_line = w;
+                }
+                
+                // Limit to reasonable number of lines
+                if (lines.size() >= 5) {
+                  // Add ellipsis to last line if we have more words
+                  if (current_line.length() > 3) {
+                    current_line = current_line.substr(0, current_line.length() - 3) + "...";
+                  }
+                  lines.push_back(current_line);
                   break;
                 }
               }
               
-              std::string line1 = meal_text.substr(0, break_point);
-              std::string line2 = meal_text.substr(break_point + 1);
-              
-              while (!line1.empty() && line1.back() == ' ') line1.pop_back();
-              while (!line2.empty() && line2.front() == ' ') line2 = line2.substr(1);
-              
-              it.printf(x, content_y, id(font_medium), COLOR_ON, TextAlign::TOP_LEFT, line1.c_str());
-              if (!line2.empty()) {
-                it.printf(x, content_y + 25, id(font_medium), COLOR_ON, TextAlign::TOP_LEFT, line2.c_str());
+              if (!current_line.empty() && lines.size() < 6) {
+                lines.push_back(current_line);
               }
+              
+              return lines;
+            };
+            
+            // Calculate available lines based on cell height
+            int available_height = cell_height - (content_y - y) - 5; // 5px bottom margin
+            int line_height = 20; // font_medium is 24px, use 20 spacing
+            int max_lines = available_height / line_height;
+            
+            // Use consistent font_medium for all text
+            int max_chars_per_line = 14;
+            
+            std::vector<std::string> lines = wrap_text_at_spaces(meal_text, max_chars_per_line);
+            
+            // If lines exceed available space, limit them
+            if (lines.size() > max_lines && max_lines > 0) {
+              lines.resize(max_lines);
+              // Add ellipsis to last line if it was truncated
+              if (!lines.empty() && lines.back().length() > 3) {
+                lines.back() = lines.back().substr(0, lines.back().length() - 3) + "...";
+              }
+            }
+            
+            // Draw all lines with consistent font_medium
+            for (size_t i = 0; i < lines.size(); i++) {
+              int line_y = content_y + (i * line_height);
+              it.printf(x, line_y, id(font_medium), COLOR_ON, TextAlign::TOP_LEFT, lines[i].c_str());
+            }
+            
+            // If no lines were generated (empty text), show "Loading..."
+            if (lines.empty()) {
+              it.printf(x, content_y, id(font_medium), COLOR_ON, TextAlign::TOP_LEFT, "Loading...");
             }
           }
         }
