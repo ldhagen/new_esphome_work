@@ -22,7 +22,6 @@ api:
   encryption:
     key: "sptBK8w6ZAhtEPI/S5X7BuHFoLi7u6IqG6pJVPU9g3s="
   reboot_timeout: 0s
-  # Add connection events
   on_client_connected:
     then:
       - lambda: |-
@@ -85,6 +84,7 @@ wifi:
     then:
       - lambda: |-
           ESP_LOGI("main", "WiFi connected");
+          id(force_display_update) = true;
   on_disconnect:
     then:
       - lambda: |-
@@ -112,48 +112,86 @@ font:
     size: 20
 
 text_sensor:
-  # Home Assistant text sensors
   - platform: homeassistant
     id: meal_mon
     name: "Meal Monday"
     entity_id: input_text.meal_mon
-    
+    on_value:
+      then:
+        - lambda: |-
+            ESP_LOGI("main", "Meal Monday updated");
+            id(force_display_update) = true;
+            
   - platform: homeassistant
     id: meal_tue
     name: "Meal Tuesday"
     entity_id: input_text.meal_tue
-    
+    on_value:
+      then:
+        - lambda: |-
+            ESP_LOGI("main", "Meal Tuesday updated");
+            id(force_display_update) = true;
+            
   - platform: homeassistant
     id: meal_wed
     name: "Meal Wednesday"
     entity_id: input_text.meal_wed
-    
+    on_value:
+      then:
+        - lambda: |-
+            ESP_LOGI("main", "Meal Wednesday updated");
+            id(force_display_update) = true;
+            
   - platform: homeassistant
     id: meal_thu
     name: "Meal Thursday"
     entity_id: input_text.meal_thu
-    
+    on_value:
+      then:
+        - lambda: |-
+            ESP_LOGI("main", "Meal Thursday updated");
+            id(force_display_update) = true;
+            
   - platform: homeassistant
     id: meal_fri
     name: "Meal Friday"
     entity_id: input_text.meal_fri
-    
+    on_value:
+      then:
+        - lambda: |-
+            ESP_LOGI("main", "Meal Friday updated");
+            id(force_display_update) = true;
+            
   - platform: homeassistant
     id: meal_sat
     name: "Meal Saturday"
     entity_id: input_text.meal_sat
-    
+    on_value:
+      then:
+        - lambda: |-
+            ESP_LOGI("main", "Meal Saturday updated");
+            id(force_display_update) = true;
+            
   - platform: homeassistant
     id: meal_sun
     name: "Meal Sunday"
     entity_id: input_text.meal_sun
-    
+    on_value:
+      then:
+        - lambda: |-
+            ESP_LOGI("main", "Meal Sunday updated");
+            id(force_display_update) = true;
+            
   - platform: homeassistant
     id: meal_notes
     name: "Meal Notes"
     entity_id: input_text.meal_notes
+    on_value:
+      then:
+        - lambda: |-
+            ESP_LOGI("main", "Meal Notes updated");
+            id(force_display_update) = true;
 
-  # Diagnostic sensors
   - platform: template
     name: 'Last Restart'
     icon: mdi:clock
@@ -183,109 +221,116 @@ display:
     cs_pin: GPIO3
     dc_pin: GPIO5
     busy_pin: GPIO4
-    reset_pin: GPIO1
+    reset_pin: GPIO2  # CRITICAL: Changed from GPIO1 to GPIO2
     model: 7.50inv2
     rotation: 0
     update_interval: 30s
     lambda: |-
       ESP_LOGD("display", "Starting display render");
       
-      id(recorded_display_refresh) += 1;
-      
-      auto now = id(local_time).now();
-      if (now.is_valid()) {
-        id(last_refresh_time) = now.strftime("%Y-%m-%d %H:%M:%S");
-      } else {
-        id(last_refresh_time) = "Time not available";
-      }
-      
-      int cell_width = it.get_width() / 4;
-      int cell_height = it.get_height() / 2;
-      
-      for (int i = 1; i < 4; i++) {
-        it.line(i * cell_width, 0, i * cell_width, it.get_height());
-      }
-      it.line(0, cell_height, it.get_width(), cell_height);
-      
-      const char* days[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT", "NOTES"};
-      
-      for (int row = 0; row < 2; row++) {
-        for (int col = 0; col < 4; col++) {
-          int index = row * 4 + col;
-          if (index >= 8) break;
-          
-          int x = col * cell_width + 5;
-          int y = row * cell_height + 5;
-          int content_y = y + 30;
-          
-          it.filled_rectangle(x-2, y-2, cell_width-6, 25, COLOR_ON);
-          it.printf(x, y, id(roboto_bold_20), COLOR_OFF, TextAlign::TOP_LEFT, days[index]);
-          
-          std::string meal_text = "Loading...";
-          
-          switch (index) {
-            case 0: meal_text = id(meal_sun).state; break;
-            case 1: meal_text = id(meal_mon).state; break;
-            case 2: meal_text = id(meal_tue).state; break;
-            case 3: meal_text = id(meal_wed).state; break;
-            case 4: meal_text = id(meal_thu).state; break;
-            case 5: meal_text = id(meal_fri).state; break;
-            case 6: meal_text = id(meal_sat).state; break;
-            case 7: meal_text = id(meal_notes).state; break;
-          }
-          
-          if (meal_text == "null" || meal_text.empty() || meal_text == "unavailable") {
-            meal_text = "Loading...";
-          }
-          
-          if (meal_text.length() >= 2 && meal_text.front() == '"' && meal_text.back() == '"') {
-            meal_text = meal_text.substr(1, meal_text.length() - 2);
-          }
-          
-          int max_chars_per_line = 10;
-          if (meal_text.length() <= max_chars_per_line) {
-            it.printf(x, content_y, id(font_big), COLOR_ON, TextAlign::TOP_LEFT, meal_text.c_str());
-          } else {
-            int break_point = max_chars_per_line;
-            for (int i = max_chars_per_line; i > max_chars_per_line - 8; i--) {
-              if (i < meal_text.length() && meal_text[i] == ' ') {
-                break_point = i;
-                break;
-              }
+      // Only update if forced or if we have data
+      if (id(force_display_update) || id(ha_connected)) {
+        id(recorded_display_refresh) += 1;
+        
+        auto now = id(local_time).now();
+        if (now.is_valid()) {
+          id(last_refresh_time) = now.strftime("%Y-%m-%d %H:%M:%S");
+        } else {
+          id(last_refresh_time) = "Time not available";
+        }
+        
+        int cell_width = it.get_width() / 4;
+        int cell_height = it.get_height() / 2;
+        
+        // Draw grid lines
+        for (int i = 1; i < 4; i++) {
+          it.line(i * cell_width, 0, i * cell_width, it.get_height());
+        }
+        it.line(0, cell_height, it.get_width(), cell_height);
+        
+        const char* days[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT", "NOTES"};
+        
+        for (int row = 0; row < 2; row++) {
+          for (int col = 0; col < 4; col++) {
+            int index = row * 4 + col;
+            if (index >= 8) break;
+            
+            int x = col * cell_width + 5;
+            int y = row * cell_height + 5;
+            int content_y = y + 30;
+            
+            it.filled_rectangle(x-2, y-2, cell_width-6, 25, COLOR_ON);
+            it.printf(x, y, id(roboto_bold_20), COLOR_OFF, TextAlign::TOP_LEFT, days[index]);
+            
+            std::string meal_text = "Loading...";
+            
+            switch (index) {
+              case 0: meal_text = id(meal_sun).state; break;
+              case 1: meal_text = id(meal_mon).state; break;
+              case 2: meal_text = id(meal_tue).state; break;
+              case 3: meal_text = id(meal_wed).state; break;
+              case 4: meal_text = id(meal_thu).state; break;
+              case 5: meal_text = id(meal_fri).state; break;
+              case 6: meal_text = id(meal_sat).state; break;
+              case 7: meal_text = id(meal_notes).state; break;
             }
             
-            std::string line1 = meal_text.substr(0, break_point);
-            std::string line2 = meal_text.substr(break_point + 1);
+            if (meal_text == "null" || meal_text.empty() || meal_text == "unavailable") {
+              meal_text = "Loading...";
+            }
             
-            while (!line1.empty() && line1.back() == ' ') line1.pop_back();
-            while (!line2.empty() && line2.front() == ' ') line2 = line2.substr(1);
+            if (meal_text.length() >= 2 && meal_text.front() == '"' && meal_text.back() == '"') {
+              meal_text = meal_text.substr(1, meal_text.length() - 2);
+            }
             
-            it.printf(x, content_y, id(font_medium), COLOR_ON, TextAlign::TOP_LEFT, line1.c_str());
-            if (!line2.empty()) {
-              it.printf(x, content_y + 25, id(font_medium), COLOR_ON, TextAlign::TOP_LEFT, line2.c_str());
+            int max_chars_per_line = 10;
+            if (meal_text.length() <= max_chars_per_line) {
+              it.printf(x, content_y, id(font_big), COLOR_ON, TextAlign::TOP_LEFT, meal_text.c_str());
+            } else {
+              int break_point = max_chars_per_line;
+              for (int i = max_chars_per_line; i > max_chars_per_line - 8; i--) {
+                if (i < meal_text.length() && meal_text[i] == ' ') {
+                  break_point = i;
+                  break;
+                }
+              }
+              
+              std::string line1 = meal_text.substr(0, break_point);
+              std::string line2 = meal_text.substr(break_point + 1);
+              
+              while (!line1.empty() && line1.back() == ' ') line1.pop_back();
+              while (!line2.empty() && line2.front() == ' ') line2 = line2.substr(1);
+              
+              it.printf(x, content_y, id(font_medium), COLOR_ON, TextAlign::TOP_LEFT, line1.c_str());
+              if (!line2.empty()) {
+                it.printf(x, content_y + 25, id(font_medium), COLOR_ON, TextAlign::TOP_LEFT, line2.c_str());
+              }
             }
           }
         }
-      }
 
-      it.printf(5, it.get_height() - 30, id(font_small), COLOR_ON, TextAlign::TOP_LEFT, 
-                "Refresh: %d", id(recorded_display_refresh));
-      
-      auto now_time = id(local_time).now();
-      if (now_time.is_valid()) {
-        it.printf(5, it.get_height() - 15, id(font_small), COLOR_ON, TextAlign::TOP_LEFT,
-                  "%s", now_time.strftime("%H:%M").c_str());
+        it.printf(5, it.get_height() - 30, id(font_small), COLOR_ON, TextAlign::TOP_LEFT, 
+                  "Refresh: %d", id(recorded_display_refresh));
+        
+        auto now_time = id(local_time).now();
+        if (now_time.is_valid()) {
+          it.printf(5, it.get_height() - 15, id(font_small), COLOR_ON, TextAlign::TOP_LEFT,
+                    "%s", now_time.strftime("%H:%M").c_str());
+        }
+        
+        id(force_display_update) = false;
+        ESP_LOGI("main", "Display refresh completed. Refreshes: %d", id(recorded_display_refresh));
+      } else {
+        ESP_LOGD("display", "Skipping display update, not forced and HA not connected");
       }
-      
-      ESP_LOGI("main", "Display refresh completed. Refreshes: %d", id(recorded_display_refresh));
 
 interval:
   - interval: 30s
     then:
       - lambda: |-
-          ESP_LOGI("main", "Status check - WiFi: %ddBm, Refreshes: %d", 
-                   id(wifi_signal_sensor).state,
-                   id(recorded_display_refresh));
+          ESP_LOGI("main", "Status check - Refreshes: %d, Force update: %s", 
+                   id(recorded_display_refresh),
+                   id(force_display_update) ? "true" : "false");
 
 sensor:
   - platform: wifi_signal
@@ -310,8 +355,10 @@ button:
     icon: mdi:refresh
     on_press:
       then:
+        - lambda: |-
+            ESP_LOGI("main", "Manual display refresh triggered");
+            id(force_display_update) = true;
         - component.update: main_display
-        - logger.log: "Manual display refresh triggered"
 
 binary_sensor:
   - platform: status
