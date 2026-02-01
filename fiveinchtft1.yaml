@@ -17,12 +17,6 @@ esp32:
       CONFIG_SPIRAM_FETCH_INSTRUCTIONS: y
       CONFIG_SPIRAM_RODATA: y
 
-packages:
-  common_files:
-    url: https://github.com/agillis/esphome-configs
-    ref: main # optional
-    files: [modules/common/color.yaml,
-            modules/common/fonts.yaml]
 psram:
   mode: octal
   speed: 80MHz
