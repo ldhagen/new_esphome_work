@@ -1,4 +1,61 @@
-#backlight etc insights from https://github.com/iamfaraz/Waveshare_ST7262_ESPHome_LVGL/blob/main/hadisplay.yaml#L92
+# ==============================================================================
+#  WAVESHARE ESP32-S3-TOUCH-LCD-4.3 (800x480) - GOLDEN CONFIGURATION
+# ==============================================================================
+#  STATUS: ✅ STABLE (Boot, WiFi, Display, Touch, Web UI, HA Integration)
+#  DATE:   February 17, 2026
+#
+#  -----------------------------------------------------------------------------
+#  HARDWARE SPECIFICATIONS (Verified via esptool & Logs)
+#  -----------------------------------------------------------------------------
+#  * Chip:         ESP32-S3 (QFN56) v0.2
+#  * Flash:        8MB (Quad SPI) - [CRITICAL] Do not set to 16MB or it will crash.
+#  * PSRAM:        8MB (Octal SPI) - Mode: qio_opi
+#  * Display:      4.3-inch RGB Interface (800x480) via 'rpi_dpi_rgb' driver.
+#  * Touch:        Goodix GT911 (Address 0x5D).
+#  * IO Expander:  CH422G (Address 0x24) on shared I2C bus.
+#                  - Pin 2: Backlight Enable
+#                  - Pin 3: LCD Reset
+#
+#  -----------------------------------------------------------------------------
+#  TROUBLESHOOTING LOG & FIXES
+#  -----------------------------------------------------------------------------
+#  1. BOOT LOOP / CRASHES (Flash Size)
+#     Issue:  Device would boot, download image, then crash with "Invalid Address".
+#     Cause:  Config was set to 16MB flash, but hardware only has 8MB.
+#     Fix:    Set `board_build.flash_size: 8MB`.
+#
+#  2. WATCHDOG TIMEOUTS (Rebooting)
+#     Issue:  "Task watchdog got triggered" during image download or page navigation.
+#     Cause:  High CPU load from WiFi + LVGL rendering blocked the main loop.
+#     Fix:    1. Increased `CONFIG_ESP_TASK_WDT_TIMEOUT_S` to 20 seconds.
+#             2. Reduced LVGL `buffer_size` to 20% to save RAM.
+#
+#  3. GRAPHICS GLITCH / "X-RAY" COLORS
+#     Issue:  Blacks looked grey, colors were washed out/inverted.
+#     Cause:  Panel-specific color mapping.
+#     Fix:    Added `invert_colors: true` to the display configuration.
+#
+#  4. BACKLIGHT RESET / FLICKER
+#     Issue:  Toggling the backlight switch caused the screen to glitch/reset.
+#     Cause:  Re-initializing the IO expander pin aggressively.
+#     Fix:    Used a standard `light` entity for control and a Template Switch wrapper.
+#
+#  5. DUPLICATE WEB TOGGLES
+#     Issue:  Web interface showed both "Backlight Toggle" and "Display Backlight".
+#     Fix:    Added `internal: true` to the Template Switch so only the Light entity shows.
+#
+#  6. MISSING ICONS
+#     Issue:  Buttons showed empty squares.
+#     Cause:  Font awesome codes (\uF...) used with Material font file.
+#     Fix:    Switched to "Material Symbols Outlined" and updated unicode points
+#             (e.g., Bulb = \uE0F0).
+#
+#  7. NAVBAR STYLING
+#     Issue:  Bottom bar wasn't solid blue.
+#     Fix:    Wrapped buttonmatrix in an `obj` container with explicit blue background.
+#
+# ==============================================================================
+
 esphome:
   name: wavesharetouch1
   friendly_name: wavesharetouch1
@@ -6,23 +63,40 @@ esphome:
     build_flags: "-DBOARD_HAS_PSRAM"
     board_build.esp-idf.memory_type: qio_opi
     board_build.flash_mode: dio
-    board_upload.maximum_ram_size: 524288
-    board_build.flash_size: 8MB
+    board_build.flash_size: 8MB # <--- CRITICAL: Must be 8MB for this board
 
 esp32:
   board: esp32-s3-devkitc-1
   framework:
     type: esp-idf
-    platform_version: 6.8.1
-    version: 5.3.0
+    # Critical: Prevent watchdog reboots during heavy load
     sdkconfig_options:
-      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"
-      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
-      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: y
-      CONFIG_SPIRAM_RODATA: y
+      CONFIG_ESP_TASK_WDT_TIMEOUT_S: "20"
 
+# ---------------------------------------------------------
+# 1. HARDWARE
+# ---------------------------------------------------------
+psram:
+  mode: octal
+  speed: 80MHz
 
-# Enable Home Assistant API
+i2c:
+  sda: 8
+  scl: 9
+  scan: true
+  id: bus_a
+
+# Built-in CH422G Support (Address 0x24 is automatic)
+ch422g:
+  - id: io_expander
+    i2c_id: bus_a
+
+logger:
+  level: DEBUG
+
+# ---------------------------------------------------------
+# 2. CONNECTIVITY
+# ---------------------------------------------------------
 api:
   encryption:
     key: "GhDzPzQcLq3xg9LVDrpIolcR5wu5hg/cDJs7wk1vjqM="
@@ -34,917 +108,12 @@ ota:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+  power_save_mode: NONE
+  ap:
+    ssid: "Waveshare43 Fallback"
+    password: "DC8eh1CHRnvt"
   on_connect:
     - component.update: my_online_image
-            
-    # Enable fallback hotspot (captive portal) in case wifi connection fails
-  ap:
-    ssid: "Wavesharetouch1 Fallback Hotspot"
-    password: "DC8eh1CHRnvt"
-
-packages:
-  common_files:
-    url: https://github.com/agillis/esphome-configs
-    ref: main # optional
-    files: [modules/common/color.yaml,
-            modules/common/fonts.yaml]
-
-psram:
-  mode: octal
-  speed: 80MHz
-
-# Enable logging
-logger:
-  level: DEBUG
-
-i2c:
-  sda: GPIO08
-  scl: GPIO09
-  scan: True
-  id: bus_a
-
-external_components:
-
-  # CH422G I/O Expander
-  # https://github.com/esphome/esphome/pull/7356
-  - source: github://pr#7356
-    components: [ch422g]
-
-ch422g:
-  - id: io_ex
-    address: 0x24
-
-# Toggles backlight of Waveshare ESP32-S3-Touch-LCD-4.3
-switch:
-  - platform: gpio
-    name: "Backlight Toggle"
-    id: backlight_switch
-    pin:
-      ch422g: io_ex
-      number: 2
-        #      allow_other_uses: true
-# CH422G saves the last state internally, but gpio switch sets state as off except when using RESTORE_ modes
-    restore_mode: ALWAYS_ON
-
-time:
-  - platform: homeassistant
-    id: homeassistant_time
-    timezone: America/Chicago
-    on_time_sync:
-      - script.execute: time_update
-      - if:
-          condition:
-            lambda: 'return id(device_last_restart).state == "";'
-          then:
-            - text_sensor.template.publish:
-                id: device_last_restart
-                state: !lambda 'return id(homeassistant_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'
-
-    # Update the clock every second
-    on_time:
-      - seconds: "*"
-        then:
-          - script.execute: time_update
-
-script:
-  - id: time_update
-    then:
-      - lvgl.indicator.update:
-          id: second_hand
-          value: !lambda |-
-            return id(homeassistant_time).now().second;
-      - lvgl.indicator.update:
-          id: minute_hand
-          value: !lambda |-
-            return id(homeassistant_time).now().minute;
-      - lvgl.indicator.update:
-          id: hour_hand
-          value: !lambda |-
-            auto now = id(homeassistant_time).now();
-            return std::fmod(now.hour + 60, 12) * 60 + now.minute;
-      - lvgl.label.update:
-          id: date_label
-          text: !lambda |-
-            static const char * const mon_names[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
-            static char date_buf[8];
-            auto now = id(homeassistant_time).now();
-            snprintf(date_buf, sizeof(date_buf), "%s %2d", mon_names[now.month-1], now.day_of_month);
-            return date_buf;
-      - lvgl.label.update:
-          id: day_label
-          text: !lambda |-
-            static const char * const day_names[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
-            return day_names[id(homeassistant_time).now().day_of_week - 1];
-    
-display:
-  - platform: rpi_dpi_rgb
-    id: my_display
-    auto_clear_enabled: false
-    update_interval: never
-    color_order: RGB
-    pclk_frequency: 14MHz
-    dimensions:
-      width: 800
-      height: 480
-    de_pin:
-      number: 5
-    hsync_pin:
-      number: 46
-      ignore_strapping_warning: true
-    vsync_pin:
-      number: 3
-      ignore_strapping_warning: true
-    pclk_pin: 7
-    pclk_inverted: false
-    hsync_back_porch: 10 #30
-    hsync_front_porch: 20 #210 
-    hsync_pulse_width: 10 #30
-    vsync_back_porch: 10 #4
-    vsync_front_porch: 10 #4
-    vsync_pulse_width: 10 #4
-    data_pins:
-      red:
-        - 1         #r3
-        - 2         #r4
-        - 42        #r5
-        - 41        #r6
-        - 40        #r7
-      blue:
-        - 14        #b3
-        - 38        #b4
-        - 18        #b5
-        - 17        #b6
-        - 10        #b7
-      green:
-        - 39        #g2
-        - 0         #g3
-        - 45        #g4
-        - 48        #g5
-        - 47        #g6
-        - 21        #g7
-    show_test_card: True
-
-touchscreen:
-  platform: gt911
-  address: 0x5D
-  id: my_touchscreen
-  update_interval: 16ms
-  interrupt_pin: 4
-  on_touch:
-    - lambda: |-
-          ESP_LOGI("cal", "x=%d, y=%d, x_raw=%d, y_raw=%0d",
-              touch.x,
-              touch.y,
-              touch.x_raw,
-              touch.y_raw
-              );
-
-http_request:
-  verify_ssl: False      
-
-online_image:
-  #  - url: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png"
-  #- url: "http://homeassistant.local:8123/local/test1.png"
-  - url: "http://homeassistant.local:8123/local/Paris800_480.png"
-    format: png
-    id: my_online_image
-    type: RGB565
-    resize: 800x480
-    on_download_finished:
-      #  component.update: my_display
-      lvgl.image.update:
-        id: first_image
-        src: my_online_image
-
-image:
-  - file: bulb.png
-    id: Paris_image
-    resize: 750x420
-    type: RGB565      
-
-lvgl:
-  buffer_size: 25%
-  pages:
-    - id: main_page
-      widgets:
-          - image:
-              src: Paris_image
-              align: CENTER
-              id: first_image
-    - id: meter_page_1
-      widgets:
-          - meter:
-              align: LEFT_MID
-              height: 350
-              width: 350
-              scales:
-                - range_from: 00 # scale for the needle value
-                  range_to: 1000
-                  angle_range: 240
-                  rotation: 150
-                  indicators:
-                    - line:
-                        id: temperature_needle
-                        width: 2
-                        color: 0xFF0000
-                        r_mod: -4
-                    - tick_style:
-                        start_value: 0
-                        end_value: 100
-                        color_start: 0x0000bd
-                        color_end: 0xbd0000
-                        width: 1
-                - range_from: 0 # scale for the value labels
-                  range_to: 100
-                  angle_range: 240
-                  rotation: 150
-                  ticks:
-                    width: 1
-                    count: 51
-                    length: 10
-                    color: 0x000000
-                    major:
-                      stride: 5
-                      width: 2
-                      length: 10
-                      color: 0x404040
-                      label_gap: 10
-              widgets:
-                - label:
-                    id: temperature_text
-                    text: "-.- F"
-                    align: CENTER
-                    y: 45
-                - label:
-                    text: "Inside Temp"
-                    align: CENTER
-                    y: 65
-
-
-          - meter:
-              align: RIGHT_MID
-              height: 350
-              width: 350
-              scales:
-                - range_from: 00 # scale for the needle value
-                  range_to: 1000
-                  angle_range: 240
-                  rotation: 150
-                  indicators:
-                    - line:
-                        id: humidity_needle
-                        width: 2
-                        color: 0xFF0000
-                        r_mod: -4
-                    - tick_style:
-                        start_value: 0
-                        end_value: 100
-                        color_start: 0x0000bd
-                        color_end: 0xbd0000
-                        width: 1
-                - range_from: 0 # scale for the value labels
-                  range_to: 100
-                  angle_range: 240
-                  rotation: 150
-                  ticks:
-                    width: 1
-                    count: 51
-                    length: 10
-                    color: 0x000000
-                    major:
-                      stride: 5
-                      width: 2
-                      length: 10
-                      color: 0x404040
-                      label_gap: 10
-              widgets:
-                - label:
-                    id: humidity_text
-                    text: "-.- %"
-                    align: CENTER
-                    y: 45
-                - label:
-                    text: "Inside Humidity"
-                    align: CENTER
-                    y: 65
-
-    - id: meter_page_2
-      widgets:
-          - meter:
-              align: LEFT_MID
-              height: 350
-              width: 350
-              scales:
-                - range_from: 00 # scale for the needle value
-                  range_to: 1000
-                  angle_range: 240
-                  rotation: 150
-                  indicators:
-                    - line:
-                        id: temperature_needle_2
-                        width: 2
-                        color: 0xFF0000
-                        r_mod: -4
-                    - tick_style:
-                        start_value: 0
-                        end_value: 100
-                        color_start: 0x0000bd
-                        color_end: 0xbd0000
-                        width: 1
-                - range_from: 0 # scale for the value labels
-                  range_to: 100
-                  angle_range: 240
-                  rotation: 150
-                  ticks:
-                    width: 1
-                    count: 51
-                    length: 10
-                    color: 0x000000
-                    major:
-                      stride: 5
-                      width: 2
-                      length: 10
-                      color: 0x404040
-                      label_gap: 10
-              widgets:
-                - label:
-                    id: temperature_text_2
-                    text: "-.- F"
-                    align: CENTER
-                    y: 45
-                - label:
-                    text: "Outside Temp"
-                    align: CENTER
-                    y: 65
-
-
-          - meter:
-              align: RIGHT_MID
-              height: 350
-              width: 350
-              scales:
-                - range_from: 00 # scale for the needle value
-                  range_to: 1000
-                  angle_range: 240
-                  rotation: 150
-                  indicators:
-                    - line:
-                        id: humidity_needle_2
-                        width: 2
-                        color: 0xFF0000
-                        r_mod: -4
-                    - tick_style:
-                        start_value: 0
-                        end_value: 100
-                        color_start: 0x0000bd
-                        color_end: 0xbd0000
-                        width: 1
-                - range_from: 0 # scale for the value labels
-                  range_to: 100
-                  angle_range: 240
-                  rotation: 150
-                  ticks:
-                    width: 1
-                    count: 51
-                    length: 10
-                    color: 0x000000
-                    major:
-                      stride: 5
-                      width: 2
-                      length: 10
-                      color: 0x404040
-                      label_gap: 10
-              widgets:
-                - label:
-                    id: humidity_text_2
-                    text: "-.- %"
-                    align: CENTER
-                    y: 45
-                - label:
-                    text: "Outside Humidity"
-                    align: CENTER
-                    y: 65
-
-
-    - id: meter_page_3
-      width: 100%
-      bg_color: Black      
-      widgets:
-          - meter:
-              align: CENTER
-              height: 400
-              width: 400
-              scales:
-                - range_from: 280  # 28.00 inHg (scaled by 100)
-                  range_to: 310    # 31.00 inHg
-                  angle_range: 240
-                  rotation: 150
-                  indicators:
-                    - line:
-                        id: barometer_needle
-                        width: 2
-                        color: 0xFF0000
-                        r_mod: -12
-                    - tick_style:
-                        start_value: 28
-                        end_value: 31
-                        color_start: 0x0000bd
-                        color_end: 0xbd0000
-                        width: 1
-                - range_from: 28 # scale for the value labels
-                  range_to: 31
-                  angle_range: 240
-                  rotation: 150
-                  ticks:
-                    width: 1
-                    count: 31
-                    length: 10
-                    color: 0x000000
-                    major:
-                      stride: 10
-                      width: 2
-                      length: 10
-                      color: 0x404040
-                      label_gap: 1
-
-
-          - label:
-              styles: date_style
-              id: barometer_text
-              text: "      inHg"
-              align: CENTER
-              y: 85
-
-          - label:
-              styles: date_style
-              text: "Barometer"
-              align: CENTER
-              y: 65
-
-
-    - id: clock_page
-      width: 100%
-      bg_color: Black
-      widgets:
-        - obj: # clock container
-            height: 470
-            width: 470
-            align: CENTER
-            pad_all: 4
-            border_width: 0
-            bg_color: Black
-            widgets:
-              - meter: # clock face
-                  height: 95%
-                  width: 95%
-                  align: CENTER
-                  bg_color: White
-#                  bg_opa: TRANSP
-                  border_width: 0
-                  text_color: 0x000000
-                  scales:
-                    - range_from: 0 # minutes scale
-                      range_to: 60
-                      angle_range: 360
-                      rotation: 270
-                      ticks:
-                        width: 1
-                        count: 61
-                        length: 10
-                        color: 0x000000
-                      indicators:
-                        - line:
-                            id: minute_hand
-                            width: 5
-                            color: black
-                            r_mod: -4
-                            value: 0
-                    - range_from: 1 # hours scale for labels
-                      range_to: 12
-                      angle_range: 330
-                      rotation: 300
-                      ticks:
-                        width: 2
-                        count: 12
-                        length: 1
-                        major:
-                          stride: 1
-                          width: 4
-                          length: 10
-                          color: black
-                          label_gap: 12
-                    - range_from: 0 # hi-res hours scale for hand
-                      range_to: 720
-                      angle_range: 360
-                      rotation: 270
-                      ticks:
-                        count: 0
-                      indicators:
-                        - line:
-                            id: hour_hand
-                            width: 5
-                            color: black
-                            r_mod: -40
-                            value: 0
-
-                    # Second hand
-                    - range_from: 0
-                      range_to: 60
-                      angle_range: 360
-                      rotation: 270
-                      indicators:
-                        - line:
-                            id: second_hand
-                            width: 2
-                            color: Red
-                            r_mod: -10
-
-              - label:
-                  styles: date_style
-                  id: day_label
-                  y: -50
-              - label:
-                  id: date_label
-                  styles: date_style
-                  y: 50
-
-    - id: test1_page
-      width: 100%
-      bg_color: Silver
-      widgets:
-        - label:
-            id: current_weather_label_dt0
-            x: 70
-            y: 20
-            text_font: montserrat_20
-            text: 'Lance Rules! Yes he does...'
-        - textarea:
-            id: current_weather_label
-            x: 40
-            y: 40
-            height: 170
-            width: 320
-            text_font: montserrat_20
-            text: 'Lance Rules! Yes he does...'
-
-        - label:
-            id: current_weather_label_dt1
-            x: 460
-            y: 20
-            text_font: montserrat_20
-            text: 'Lance Rules! Yes he does...'
-        - textarea:
-            id: current_weather_label_1
-            x: 440
-            y: 40
-            height: 170
-            width: 320
-            text_font: montserrat_20
-            text: 'Lance Rules! Yes he does...'
-
-        - label:
-            id: current_weather_label_dt2
-            x: 70
-            y: 240
-            text_font: montserrat_20
-            text: 'Lance Rules! Yes he does...'
-        - textarea:
-            id: current_weather_label_2
-            x: 40
-            y: 260
-            height: 170
-            width: 320
-            text_font: montserrat_20
-            text: 'Lance Rules! Yes he does...'
-
-        - label:
-            id: current_weather_label_dt3
-            x: 460
-            y: 240
-            text_font: montserrat_20
-            text: 'Lance Rules! Yes he does...'
-        - textarea:
-            id: current_weather_label_3
-            x: 440
-            y: 260
-            height: 170
-            width: 320
-            text_font: montserrat_20
-            text: 'Lance Rules! Yes he does...'
-
-          
-  top_layer:
-    widgets:
-      - buttonmatrix:
-          align: bottom_mid
-          styles: header_footer
-          pad_all: 0
-          outline_width: 0
-          id: top_layer
-          items:
-            styles: header_footer
-          rows:
-            - buttons:
-              - id: light_on
-                text: "\uF0355"
-                on_press:
-                  then:
-                     switch.turn_on: backlight_switch
-              - id: page_prev
-                text: "\uF053"
-                on_press:
-                  then:
-                    lvgl.page.previous:
-              - id: page_home
-                text: "\uF015"
-                on_press:
-                  then:
-                    lvgl.page.show: main_page
-              - id: light_off
-                text: "\uF0355"
-                on_press:
-                  then:
-                     switch.turn_off: backlight_switch
-              - id: page_next
-                text: "\uF054"
-                on_press:
-                  then:
-                    lvgl.page.next:
-
-  theme:
-    button:
-      bg_color: 0x2F8CD8
-      bg_grad_color: 0x005782
-      bg_grad_dir: VER
-      bg_opa: COVER
-      border_color: 0x0077b3
-      border_width: 1
-      text_color: 0xFFFFFF
-      pressed: # set some button colors to be different in pressed state
-        bg_color: 0x006699
-        bg_grad_color: 0x00334d
-      checked: # set some button colors to be different in checked state
-        bg_color: 0x1d5f96
-        bg_grad_color: 0x03324A
-        text_color: 0xfff300
-    buttonmatrix:
-      bg_opa: TRANSP
-      border_color: 0x0077b3
-      border_width: 0
-      text_color: 0xFFFFFF
-      pad_all: 0
-      items: # set all your buttonmatrix buttons to use your custom defined styles and font
-        bg_color: 0x2F8CD8
-        bg_grad_color: 0x005782
-        bg_grad_dir: VER
-        bg_opa: COVER
-        border_color: 0x0077b3
-        border_width: 1
-        text_color: 0xFFFFFF
-        pressed:
-          bg_color: 0x006699
-          bg_grad_color: 0x00334d
-        checked:
-          bg_color: 0x1d5f96
-          bg_grad_color: 0x03324A
-          text_color: 0x005580
-    switch:
-      bg_color: 0xC0C0C0
-      bg_grad_color: 0xb0b0b0
-      bg_grad_dir: VER
-      bg_opa: COVER
-      checked:
-        bg_color: 0x1d5f96
-        bg_grad_color: 0x03324A
-        bg_grad_dir: VER
-        bg_opa: COVER
-      knob:
-        bg_color: 0xFFFFFF
-        bg_grad_color: 0xC0C0C0
-        bg_grad_dir: VER
-        bg_opa: COVER
-    slider:
-      border_width: 1
-      border_opa: 15%
-      bg_color: 0xcccaca
-      bg_opa: 15%
-      indicator:
-        bg_color: 0x1d5f96
-        bg_grad_color: 0x03324A
-        bg_grad_dir: VER
-        bg_opa: COVER
-      knob:
-        bg_color: 0x2F8CD8
-        bg_grad_color: 0x005782
-        bg_grad_dir: VER
-        bg_opa: COVER
-        border_color: 0x0077b3
-        border_width: 1
-        text_color: 0xFFFFFF
-  style_definitions:
-    - id: header_footer
-      bg_color: 0x2F8CD8
-      bg_grad_color: 0x005782
-      bg_grad_dir: VER
-      bg_opa: COVER
-      border_opa: TRANSP
-      radius: 0
-      pad_all: 0
-      pad_row: 0
-      pad_column: 0
-      border_color: 0x0077b3
-      text_color: 0xFFFFFF
-      width: 100%
-      height: 30
-    - id: date_style      # choose an ID for your definition
-      text_font: unscii_16
-      align: center
-      text_color: 0x000000
-      bg_opa: cover
-      radius: 4
-      pad_all: 2
-            
-text_sensor:
-  - platform: version
-    id: esphome_version
-    name: "ESPHome Version"
-
-  - platform: template
-    name: 'Last Restart'
-    id: device_last_restart
-    icon: mdi:clock
-    entity_category: diagnostic
-
-  - platform: homeassistant
-    id: weatherforecastd1
-    entity_id: sensor.weather_forecast_d1
-
-  - platform: homeassistant
-    id: extraweatherforecast0
-    entity_id: input_text.text_nws_extra_forecast
-    on_value:
-      then:
-        lvgl.textarea.update:
-          id: current_weather_label
-          text: !lambda return x.c_str();
-  - platform: homeassistant
-    id: extraweatherdatetime0
-    entity_id: input_text.text_nws_extra_datetime_0
-    on_value:
-      then:
-        lvgl.label.update:
-          id: current_weather_label_dt0
-          text: !lambda return x.c_str();
-
-  - platform: homeassistant
-    id: extraweatherforecast1
-    entity_id: input_text.text_nws_extra_forecast_1
-    on_value:
-      then:
-        lvgl.textarea.update:
-          id: current_weather_label_1
-          text: !lambda return x.c_str();
-  - platform: homeassistant
-    id: extraweatherdatetime1
-    entity_id: input_text.text_nws_extra_datetime_1
-    on_value:
-      then:
-        lvgl.label.update:
-          id: current_weather_label_dt1
-          text: !lambda return x.c_str();
-
-  - platform: homeassistant
-    id: extraweatherforecast2
-    entity_id: input_text.text_nws_extra_forecast_2
-    on_value:
-      then:
-        lvgl.textarea.update:
-          id: current_weather_label_2
-          text: !lambda return x.c_str();
-  - platform: homeassistant
-    id: extraweatherdatetime2
-    entity_id: input_text.text_nws_extra_datetime_2
-    on_value:
-      then:
-        lvgl.label.update:
-          id: current_weather_label_dt2
-          text: !lambda return x.c_str();
-
-  - platform: homeassistant
-    id: extraweatherforecast3
-    entity_id: input_text.text_nws_extra_forecast_3
-    on_value:
-      then:
-        lvgl.textarea.update:
-          id: current_weather_label_3
-          text: !lambda return x.c_str();
-  - platform: homeassistant
-    id: extraweatherdatetime3
-    entity_id: input_text.text_nws_extra_datetime_3
-    on_value:
-      then:
-        lvgl.label.update:
-          id: current_weather_label_dt3
-          text: !lambda return x.c_str();
-            
-
-binary_sensor:
-  - platform: status
-    name: "Status"
-    entity_category: diagnostic
-
-sensor:
-  - platform: wifi_signal
-    name: "Waveshare1 Touch WiFi Signal Sensor"
-    update_interval: 60s
-
-  - platform: uptime
-    type: seconds
-    name: Uptime Sensor
-
-  - platform: homeassistant
-    id: inside_temperature
-    entity_id: sensor.devtest2_bme280_temperature_devtest2
-    on_value:
-      - lvgl.indicator.update:
-          id: temperature_needle
-          value: !lambda return x * 10;
-      - lvgl.label.update:
-          id: temperature_text
-          text:
-            format: "%.1f°F"
-            args: [ 'x' ]
-
-  - platform: homeassistant
-    id: inside_humidity
-    entity_id: sensor.devtest2_bme280_humidity_devtest2
-    on_value:
-      - lvgl.indicator.update:
-          id: humidity_needle
-          value: !lambda return x * 10;
-      - lvgl.label.update:
-          id: humidity_text
-          text:
-            format: "%.1f%%"
-            args: [ 'x' ]
-
-  - platform: homeassistant
-    id: outside_temperature
-    entity_id: sensor.tempcurrent
-    on_value:
-      - lvgl.indicator.update:
-          id: temperature_needle_2
-          value: !lambda return x * 10;
-      - lvgl.label.update:
-          id: temperature_text_2
-          text:
-            format: "%.1f°F"
-            args: [ 'x' ]
-
-  - platform: homeassistant
-    id: outside_humidity
-    entity_id: sensor.humiditycurrent
-    on_value:
-      - lvgl.indicator.update:
-          id: humidity_needle_2
-          value: !lambda return x * 10;
-      - lvgl.label.update:
-          id: humidity_text_2
-          text:
-            format: "%.1f%%"
-            args: [ 'x' ]
-
-  - platform: homeassistant
-    id: barometer_pressure
-    entity_id: sensor.pressurecurrent
-    on_value:   
-      - lvgl.indicator.update:
-          id: barometer_needle
-          value: !lambda return x * 10;
-      - lvgl.label.update:
-          id: barometer_text
-          text:
-            format: "%.1finHG"
-            args: [ 'x' ]      
-
-  - platform: homeassistant
-    id: dewpoint
-    entity_id: sensor.dewpointcurrent
-
-  - platform: homeassistant
-    id: cloudcover
-    entity_id: sensor.cloudcovercurrent
-
-  - platform: homeassistant
-    id: tempforecastd1
-    entity_id: sensor.temperature_forecast_d1      
-
-# Restart & Safe Mode Buttons
-button:
-  - platform: restart
-    name: "Restart Device"
-  - platform: safe_mode
-    name: "Restart in Safe Mode"
 
 web_server:
   port: 80
@@ -953,3 +122,479 @@ web_server:
 
 captive_portal:
 
+# ---------------------------------------------------------
+# 3. DISPLAY & TOUCH
+# ---------------------------------------------------------
+display:
+  - platform: rpi_dpi_rgb
+    id: my_display
+    auto_clear_enabled: false
+    # invert_colors: true fixes the "x-ray" look on your specific panel
+    invert_colors: true
+    color_order: RGB
+    dimensions:
+      width: 800
+      height: 480
+    
+    pclk_frequency: 14MHz
+    pclk_inverted: true
+    hsync_pulse_width: 4
+    hsync_back_porch: 8
+    hsync_front_porch: 8
+    vsync_pulse_width: 4
+    vsync_back_porch: 8
+    vsync_front_porch: 8
+    
+    de_pin: 5
+    hsync_pin: 46
+    vsync_pin: 3
+    pclk_pin: 7
+    
+    # Reset Pin (LCD) - CH422G Pin 3
+    reset_pin:
+      ch422g: io_expander
+      number: 3
+
+    # RGB Data Pins
+    data_pins:
+      red:   [1, 2, 42, 41, 40]
+      green: [39, 0, 45, 48, 47, 21]
+      blue:  [14, 38, 18, 17, 10]
+
+touchscreen:
+  - platform: gt911
+    id: my_touch
+    i2c_id: bus_a
+    interrupt_pin: 4
+    reset_pin:
+      ch422g: io_expander
+      number: 1
+
+# ---------------------------------------------------------
+# 4. BACKLIGHT & WEB CONTROLS
+# ---------------------------------------------------------
+# This Light entity controls CH422G Pin 2
+output:
+  - platform: gpio
+    id: backlight_output
+    pin:
+      ch422g: io_expander
+      number: 2
+
+# Main Backlight Entity (Visible in Web/HA)
+light:
+  - platform: binary
+    name: "Display Backlight"
+    id: lcd_backlight
+    output: backlight_output
+    restore_mode: ALWAYS_ON
+
+# Internal Switch for LVGL (Hidden from Web/HA via internal: true)
+switch:
+  - platform: template
+    id: backlight_switch
+    internal: true
+    turn_on_action:
+      - light.turn_on: lcd_backlight
+    turn_off_action:
+      - light.turn_off: lcd_backlight
+    lambda: |-
+      return id(lcd_backlight).remote_values.is_on();
+
+# ---------------------------------------------------------
+# 5. BUTTONS (WEB UI)
+# ---------------------------------------------------------
+button:
+  - platform: restart
+    id: restart_device
+    name: "Restart Device"
+
+  - platform: template
+    name: "Previous Page"
+    icon: "mdi:arrow-left-bold"
+    on_press:
+      - lvgl.page.previous:
+
+  - platform: template
+    name: "Next Page"
+    icon: "mdi:arrow-right-bold"
+    on_press:
+      - lvgl.page.next:
+
+# ---------------------------------------------------------
+# 6. SENSORS & DATA
+# ---------------------------------------------------------
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+    timezone: America/Chicago
+    on_time:
+      - seconds: "*"
+        then:
+          - script.execute: time_update
+
+text_sensor:
+  - platform: version
+    id: esphome_version
+    name: "ESPHome Version"
+
+  - platform: homeassistant
+    id: extraweatherforecast0
+    entity_id: input_text.text_nws_extra_forecast
+    on_value:
+      then:
+        lvgl.textarea.update: {id: current_weather_label, text: !lambda 'return x.c_str();'}
+  - platform: homeassistant
+    id: extraweatherdatetime0
+    entity_id: input_text.text_nws_extra_datetime_0
+    on_value:
+      then:
+        lvgl.label.update: {id: current_weather_label_dt0, text: !lambda 'return x.c_str();'}
+
+  - platform: homeassistant
+    id: extraweatherforecast1
+    entity_id: input_text.text_nws_extra_forecast_1
+    on_value:
+      then:
+        lvgl.textarea.update: {id: current_weather_label_1, text: !lambda 'return x.c_str();'}
+  - platform: homeassistant
+    id: extraweatherdatetime1
+    entity_id: input_text.text_nws_extra_datetime_1
+    on_value:
+      then:
+        lvgl.label.update: {id: current_weather_label_dt1, text: !lambda 'return x.c_str();'}
+
+  - platform: homeassistant
+    id: extraweatherforecast2
+    entity_id: input_text.text_nws_extra_forecast_2
+    on_value:
+      then:
+        lvgl.textarea.update: {id: current_weather_label_2, text: !lambda 'return x.c_str();'}
+  - platform: homeassistant
+    id: extraweatherdatetime2
+    entity_id: input_text.text_nws_extra_datetime_2
+    on_value:
+      then:
+        lvgl.label.update: {id: current_weather_label_dt2, text: !lambda 'return x.c_str();'}
+
+  - platform: homeassistant
+    id: extraweatherforecast3
+    entity_id: input_text.text_nws_extra_forecast_3
+    on_value:
+      then:
+        lvgl.textarea.update: {id: current_weather_label_3, text: !lambda 'return x.c_str();'}
+  - platform: homeassistant
+    id: extraweatherdatetime3
+    entity_id: input_text.text_nws_extra_datetime_3
+    on_value:
+      then:
+        lvgl.label.update: {id: current_weather_label_dt3, text: !lambda 'return x.c_str();'}
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+  - platform: uptime
+    name: "Uptime"
+
+  - platform: homeassistant
+    id: inside_temperature
+    entity_id: sensor.devtest2_bme280_temperature_devtest2
+    on_value:
+      - lvgl.indicator.update: {id: temperature_needle, value: !lambda 'return x * 10;'}
+      - lvgl.label.update: {id: temperature_text, text: {format: "%.1f°F", args: ['x']}}
+
+  - platform: homeassistant
+    id: inside_humidity
+    entity_id: sensor.devtest2_bme280_humidity_devtest2
+    on_value:
+      - lvgl.indicator.update: {id: humidity_needle, value: !lambda 'return x * 10;'}
+      - lvgl.label.update: {id: humidity_text, text: {format: "%.1f%%", args: ['x']}}
+
+  - platform: homeassistant
+    id: outside_temperature
+    entity_id: sensor.tempcurrent
+    on_value:
+      - lvgl.indicator.update: {id: temperature_needle_2, value: !lambda 'return x * 10;'}
+      - lvgl.label.update: {id: temperature_text_2, text: {format: "%.1f°F", args: ['x']}}
+
+  - platform: homeassistant
+    id: outside_humidity
+    entity_id: sensor.humiditycurrent
+    on_value:
+      - lvgl.indicator.update: {id: humidity_needle_2, value: !lambda 'return x * 10;'}
+      - lvgl.label.update: {id: humidity_text_2, text: {format: "%.1f%%", args: ['x']}}
+          
+  - platform: homeassistant
+    id: barometer_pressure
+    entity_id: sensor.pressurecurrent
+    on_value:   
+      - lvgl.indicator.update: {id: barometer_needle, value: !lambda 'return x * 10;'}
+      - lvgl.label.update: {id: barometer_text, text: {format: "%.1finHG", args: ['x']}}
+
+# ---------------------------------------------------------
+# 7. LVGL UI
+# ---------------------------------------------------------
+http_request:
+  verify_ssl: False
+  timeout: 10s
+
+online_image:
+  - url: "http://homeassistant.local:8123/local/Paris800_480.png"
+    format: png
+    id: my_online_image
+    type: RGB565
+    resize: 800x480
+    on_download_finished:
+      lvgl.image.update: {id: first_image, src: my_online_image}
+
+image:
+  - file: bulb.png
+    id: Paris_image
+    resize: 750x420
+    type: RGB565    
+
+font:
+  - file: "gfonts://Montserrat"
+    id: montserrat_20
+    size: 20
+  - file: "gfonts://Montserrat"
+    id: unscii_16
+    size: 16
+  # Use Material Symbols Outlined for guaranteed icon mapping
+  - file: "gfonts://Material Symbols Outlined"
+    id: icon_font
+    size: 32
+    glyphs: "\uE0F0\uE5C4\uE88A\uE8AC\uE5C8" # Bulb, Left, Home, Power, Right
+
+script:
+  - id: time_update
+    then:
+      - lvgl.indicator.update: {id: second_hand, value: !lambda "return id(homeassistant_time).now().second;"}
+      - lvgl.indicator.update: {id: minute_hand, value: !lambda "return id(homeassistant_time).now().minute;"}
+      - lvgl.indicator.update: {id: hour_hand, value: !lambda "auto now = id(homeassistant_time).now(); return std::fmod(now.hour, 12) * 60 + now.minute;"}
+      - lvgl.label.update: 
+          id: date_label 
+          text: !lambda |-
+            static const char * const mon_names[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+            static char date_buf[16];
+            auto now = id(homeassistant_time).now();
+            snprintf(date_buf, sizeof(date_buf), "%s %2d", mon_names[now.month-1], now.day_of_month);
+            return date_buf;
+      - lvgl.label.update:
+          id: day_label
+          text: !lambda |-
+            static const char * const day_names[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+            return day_names[id(homeassistant_time).now().day_of_week - 1];
+
+lvgl:
+  buffer_size: 20%
+  style_definitions:
+    # Blue Footer Bar
+    - id: header_footer
+      text_font: icon_font # Using the correct font ID
+      bg_color: 0x2F8CD8
+      bg_grad_color: 0x005782
+      bg_grad_dir: VER
+      bg_opa: COVER
+      border_width: 0
+      radius: 0
+      pad_all: 0
+      text_color: 0xFFFFFF
+      width: 100%
+      height: 40
+    - id: date_style
+      text_font: unscii_16
+      align: center
+      text_color: 0x000000
+
+  pages:
+    - id: main_page
+      widgets:
+        - image: {src: Paris_image, align: CENTER, id: first_image}
+
+    # Meter Page 1 (Inside)
+    - id: meter_page_1
+      widgets:
+        - meter:
+            align: LEFT_MID
+            height: 350
+            width: 350
+            scales:
+              - range_from: 0
+                range_to: 1000
+                angle_range: 240
+                rotation: 150
+                ticks:
+                  width: 2
+                  count: 31
+                  length: 10
+                  color: 0x000000
+                  major: {stride: 5, width: 3, length: 15, color: 0xFF0000}
+                indicators:
+                  - line: {id: temperature_needle, width: 2, color: 0xFF0000}
+            widgets:
+              - label: {id: temperature_text, text: "-.- F", align: CENTER, y: 45}
+              - label: {text: "Inside Temp", align: CENTER, y: 65}
+        - meter:
+            align: RIGHT_MID
+            height: 350
+            width: 350
+            scales:
+              - range_from: 0
+                range_to: 1000
+                angle_range: 240
+                rotation: 150
+                ticks:
+                  width: 2
+                  count: 31
+                  length: 10
+                  color: 0x000000
+                  major: {stride: 5, width: 3, length: 15, color: 0xFF0000}
+                indicators:
+                  - line: {id: humidity_needle, width: 2, color: 0xFF0000}
+            widgets:
+              - label: {id: humidity_text, text: "-.- %", align: CENTER, y: 45}
+              - label: {text: "Inside Humidity", align: CENTER, y: 65}
+
+    # Meter Page 2 (Outside)
+    - id: meter_page_2
+      widgets:
+        - meter:
+            align: LEFT_MID
+            height: 350
+            width: 350
+            scales:
+              - range_from: 0
+                range_to: 1000
+                angle_range: 240
+                rotation: 150
+                ticks:
+                  width: 2
+                  count: 31
+                  length: 10
+                  color: 0x000000
+                  major: {stride: 5, width: 3, length: 15, color: 0xFF0000}
+                indicators:
+                  - line: {id: temperature_needle_2, width: 2, color: 0xFF0000}
+            widgets:
+              - label: {id: temperature_text_2, text: "-.- F", align: CENTER, y: 45}
+              - label: {text: "Outside Temp", align: CENTER, y: 65}
+        - meter:
+            align: RIGHT_MID
+            height: 350
+            width: 350
+            scales:
+              - range_from: 0
+                range_to: 1000
+                angle_range: 240
+                rotation: 150
+                ticks:
+                  width: 2
+                  count: 31
+                  length: 10
+                  color: 0x000000
+                  major: {stride: 5, width: 3, length: 15, color: 0xFF0000}
+                indicators:
+                  - line: {id: humidity_needle_2, width: 2, color: 0xFF0000}
+            widgets:
+              - label: {id: humidity_text_2, text: "-.- %", align: CENTER, y: 45}
+              - label: {text: "Outside Humidity", align: CENTER, y: 65}
+
+    # Meter Page 3 (Barometer)
+    - id: meter_page_3
+      bg_color: Black
+      widgets:
+        - meter:
+            align: CENTER
+            height: 400
+            width: 400
+            scales:
+              - range_from: 280
+                range_to: 310
+                angle_range: 240
+                rotation: 150
+                ticks:
+                  width: 2
+                  count: 31
+                  length: 10
+                  color: 0x0000FF # Blue ticks
+                  major: {stride: 5, width: 3, length: 15, color: 0xFFFFFF}
+                indicators:
+                  - line: {id: barometer_needle, width: 4, color: 0xFF0000}
+        - label: {id: barometer_text, styles: date_style, text: "inHg", align: CENTER, y: 85}
+        - label: {styles: date_style, text: "Barometer", align: CENTER, y: 65}
+
+    # Clock Page
+    - id: clock_page
+      bg_color: Black
+      widgets:
+        - obj:
+            height: 470
+            width: 470
+            align: CENTER
+            bg_color: Black
+            widgets:
+              - meter:
+                  id: analog_clock
+                  height: 95%
+                  width: 95%
+                  align: CENTER
+                  bg_color: White
+                  scales:
+                    - range_from: 0
+                      range_to: 60
+                      indicators:
+                        - line: {id: minute_hand, width: 5, color: black}
+                        - line: {id: second_hand, width: 2, color: red}
+                    - range_from: 0
+                      range_to: 720
+                      indicators:
+                        - line: {id: hour_hand, width: 5, color: black}
+              - label: {id: day_label, styles: date_style, y: -50}
+              - label: {id: date_label, styles: date_style, y: 50}
+
+    # Weather Text Page
+    - id: test1_page
+      bg_color: Silver
+      widgets:
+        - label: {id: current_weather_label_dt0, x: 70, y: 20, text_font: montserrat_20, text: '...'}
+        - textarea: {id: current_weather_label, x: 40, y: 40, height: 170, width: 320, text_font: montserrat_20, text: '...'}
+        - label: {id: current_weather_label_dt1, x: 460, y: 20, text_font: montserrat_20, text: '...'}
+        - textarea: {id: current_weather_label_1, x: 440, y: 40, height: 170, width: 320, text_font: montserrat_20, text: '...'}
+        - label: {id: current_weather_label_dt2, x: 70, y: 240, text_font: montserrat_20, text: '...'}
+        - textarea: {id: current_weather_label_2, x: 40, y: 260, height: 170, width: 320, text_font: montserrat_20, text: '...'}
+        - label: {id: current_weather_label_dt3, x: 460, y: 240, text_font: montserrat_20, text: '...'}
+        - textarea: {id: current_weather_label_3, x: 440, y: 260, height: 170, width: 320, text_font: montserrat_20, text: '...'}
+
+  # Navbar (Buttons: On | Prev | Home | Off | Next)
+  top_layer:
+    widgets:
+      # Container enforces solid background color
+      - obj:
+          align: bottom_mid
+          width: 100%
+          height: 40
+          bg_color: 0x2F8CD8
+          bg_opa: COVER
+          border_width: 0
+          pad_all: 0
+          widgets:
+            - buttonmatrix:
+                align: CENTER
+                width: 100%
+                height: 100%
+                styles: header_footer
+                id: nav_bar
+                rows:
+                  - buttons:
+                    - text: "\uE0F0" # ON (Bulb)
+                      on_press: {then: [switch.turn_on: backlight_switch]}
+                    - text: "\uE5C4" # Prev
+                      on_press: {then: [lvgl.page.previous: ]}
+                    - text: "\uE88A" # Home
+                      on_press: {then: [lvgl.page.show: main_page]}
+                    - text: "\uE8AC" # OFF (Power)
+                      on_press: {then: [switch.turn_off: backlight_switch]}
+                    - text: "\uE5C8" # Next
+                      on_press: {then: [lvgl.page.next: ]}
