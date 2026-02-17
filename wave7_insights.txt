@@ -1,0 +1,174 @@
+This is a comprehensive summary document designed to be committed to your repository (e.g., as `TROUBLESHOOTING.md` or `HARDWARE_NOTES.md`). It captures the hardware specifics, the "ghost" issues we fought, and the final working configuration.
+
+### **Hardware & Configuration Report: Waveshare ESP32-S3-Touch-LCD-7**
+
+**Status:** ✅ Fully Operational (WiFi, Display, Touch, API)
+**Date:** February 17, 2026
+**Device Variant:** Waveshare ESP32-S3-Touch-LCD-7 (Standard S3 Version, *not* P4)
+
+---
+
+### **1. Hardware Specifications (Verified)**
+
+During the boot loop analysis, we definitively identified the hardware capabilities, which contradicted some default assumptions.
+
+* **Chip:** ESP32-S3 (QFN56) v0.2
+* **Flash:** **8MB** (Quad SPI)
+* *Correction:* Initial attempts using 4MB or 16MB settings caused boot loops. The correct map is `board_build.flash_size: 8MB`.
+
+
+* **PSRAM:** **8MB** (Octal SPI)
+* *Config:* `board_build.esp-idf.memory_type: qio_opi`
+
+
+* **Display Controller:** RGB Interface (using `rpi_dpi_rgb`)
+* *Resolution:* 800x480
+* *Pixel Clock:* 16MHz (Inverted)
+
+
+* **Touch Controller:** Goodix GT911
+* *Address:* **0x14** (Requires specific strap sequence)
+
+
+* **IO Expander:** CH422G (Address 0x24)
+* *Role:* Controls Backlight (Pin 2), Touch Reset (Pin 3), and LCD Enable (Pin 5).
+* *Issue:* This chip is slow and can cause I2C bus contention ("Ghost Devices").
+
+
+
+---
+
+### **2. Critical Issues & Solutions**
+
+#### **A. The "Ghost" I2C Bus (Addresses 0x20-0x3F)**
+
+* **Symptom:** I2C scans reported devices at *every* address from 0x20 to 0x3F.
+* **Cause:** The CH422G IO expander was latching the bus or creating noise during the reset sequence.
+* **Fix:** Ignore the scan results. The hardware is electrically fine. Using a slow I2C frequency (10kHz) during the "strap" sequence helps, but relying on a robust driver (like the remote package) is the permanent fix.
+
+#### **B. The Reset "Race Condition"**
+
+* **Symptom:** Touch driver failed with `Calibration Error`.
+* **Cause:** We implemented a manual "boot script" to wake the chip. However, the ESPHome `switch` component initialized *after* our script but *before* the driver. Since the default state was `ALWAYS_OFF`, the switch component cut power to the touch chip immediately after we woke it up.
+* **Fix:** Set `restore_mode: ALWAYS_ON` for the Reset Pin switch. This ensures the power stays ON during the driver initialization phase.
+
+#### **C. Pin Conflict (GPIO 5)**
+
+* **Symptom:** Compiler error "Pin 5 is used in multiple places."
+* **Cause:** We tried to manually control the LCD Enable pin (on the IO Expander) while the `rpi_dpi_rgb` display component also claimed it.
+* **Fix:** Removed manual control. The display component manages the Enable pin automatically.
+
+---
+
+### **3. Final Working Configuration (YAML)**
+
+This configuration uses the maintained `inytar` package, which abstracts the complex CH422G initialization and fixes the race conditions we discovered.
+
+**Filename:** `waveshare7inch.yaml`
+
+```yaml
+esphome:
+  name: waveshare7inch
+  friendly_name: waveshare7inch
+
+  platformio_options:
+    build_flags: "-DBOARD_HAS_PSRAM"
+    board_build.esp-idf.memory_type: qio_opi
+    board_build.flash_mode: dio
+    board_upload.maximum_ram_size: 524288
+    board_build.flash_size: 8MB
+
+# ---------------------------------------------------------
+# IMPORT HARDWARE DEFINITIONS
+# ---------------------------------------------------------
+packages:
+  remote_package:
+    url: https://github.com/inytar/waveshare-esp32-s3-touch-lcd-7-esphome
+    ref: main
+    file: waveshare-esp32-s3-touch-lcd-7.yaml
+    refresh: 1h
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+
+# ---------------------------------------------------------
+# LOGGING (USB/UART)
+# ---------------------------------------------------------
+logger:
+  level: DEBUG
+  hardware_uart: UART0
+  baud_rate: 115200
+
+# ---------------------------------------------------------
+# NETWORK & API
+# ---------------------------------------------------------
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+web_server:
+  port: 80
+
+api:
+  encryption:
+    key: "Dgnfz00FQ13sV8dbeFs2Qq8GKbnaKLQLYAJyYlgqDGw="
+
+ota:
+  - platform: esphome
+    password: "47cd6b83e7204067ea2e46f0fced55da"
+
+# ---------------------------------------------------------
+# UI DEMO
+# ---------------------------------------------------------
+lvgl:
+  buffer_size: 10% # Keep low (10%) to preserve RAM for WiFi
+  pages:
+    - id: main_page
+      widgets:
+        - label:
+            text: "SYSTEM ONLINE"
+            align: CENTER
+            text_color: 0xFFFFFF
+            text_font: montserrat_20
+        - label:
+            text: "Touch + Display + WiFi"
+            align: CENTER
+            y: 30
+            text_color: 0xAAAAAA
+            text_font: montserrat_14
+
+font:
+  - file: "gfonts://Montserrat"
+    id: montserrat_20
+    size: 40
+  - file: "gfonts://Montserrat"
+    id: montserrat_14
+    size: 20
+
+```
+
+---
+
+### **4. Manual "Strap Sequence" Reference**
+
+If you ever need to debug the hardware manually without the package, this is the logic that successfully wakes the chip at address **0x14**:
+
+```cpp
+// 1. Force Reset LOW (Chip OFF)
+id(touch_rst).turn_off();
+delay(100);
+
+// 2. Drive INT HIGH (Select Address 0x14)
+id(touch_int_pin).turn_on();
+delay(50);
+
+// 3. Release Reset (Chip ON) -> Latches 0x14
+id(touch_rst).turn_on();
+delay(200);
+
+// 4. Release INT Pin (Float/Input)
+id(touch_int_pin).turn_off();
+
+```

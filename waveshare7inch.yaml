@@ -1,7 +1,52 @@
-#backlight etc insights from https://github.com/iamfaraz/Waveshare_ST7262_ESPHome_LVGL/blob/main/hadisplay.yaml#L92
+# ==============================================================================
+#  WAVESHARE ESP32-S3-TOUCH-LCD-7 (800x480) - HARDWARE DOCUMENTATION & CONFIG
+# ==============================================================================
+#
+#  STATUS: ✅ Fully Operational (WiFi, Touch, Display, LVGL, HA Integration)
+#  DATE:   February 17, 2026
+#
+#  -----------------------------------------------------------------------------
+#  HARDWARE SPECIFICATIONS (Verified via Boot Logs & Testing)
+#  -----------------------------------------------------------------------------
+#  * Chip:         ESP32-S3 (QFN56) v0.2
+#  * Flash:        8MB (Quad SPI) - *Critical: 16MB settings cause boot loops*
+#  * PSRAM:        8MB (Octal SPI) - Mode: qio_opi
+#  * Display:      7-inch RGB Interface (800x480) via 'rpi_dpi_rgb' driver.
+#  * Touch:        Goodix GT911. Address 0x5D/0x14 depending on strap.
+#  * IO Expander:  CH422G (Address 0x24). Controls Backlight, Reset, Enable.
+#
+#  -----------------------------------------------------------------------------
+#  TROUBLESHOOTING LOG & SOLUTIONS
+#  -----------------------------------------------------------------------------
+#  1. THE "GHOST" I2C BUS
+#     Issue: I2C Scan reported devices at every address from 0x20-0x3F.
+#     Cause: The CH422G IO Expander is slow/noisy during reset, jamming the bus.
+#     Fix:   Do not rely on I2C scan. Use the 'inytar' remote package which
+#            contains a patched driver to handle the CH422G timing correctly.
+#
+#  2. THE RESET RACE CONDITION
+#     Issue: Touch driver failed with "Calibration Error" or "Timeout".
+#     Cause: Manual GPIO switches defaulted to OFF, cutting power to the touch
+#            chip immediately after it was woken up by the boot script.
+#     Fix:   The remote package handles the initialization sequence internally,
+#            ensuring the Reset pin stays HIGH (ON) during driver load.
+#
+#  3. WATCHDOG (WDT) RESETS
+#     Issue:  Device rebooted randomly when loading complex LVGL pages.
+#     Reason: High CPU load (LVGL + WiFi) caused the loop to hang.
+#     Fix:    1. Reduced LVGL buffer from 25% to 10% (saves RAM).
+#             2. Set 'power_save_mode: NONE' on WiFi (prevents radio sleep lags).
+#
+#  4. P4 vs S3 CONFUSION
+#     Note:   This board is the S3 version (RGB). It is NOT compatible with
+#             configs for the P4 version (MIPI). Do not mix them.
+#
+# ==============================================================================
+
 esphome:
   name: waveshare7inch
   friendly_name: waveshare7inch
+
   platformio_options:
     build_flags: "-DBOARD_HAS_PSRAM"
     board_build.esp-idf.memory_type: qio_opi
@@ -9,31 +54,29 @@ esphome:
     board_upload.maximum_ram_size: 524288
     board_build.flash_size: 8MB
 
+# ---------------------------------------------------------
+# 1. HARDWARE FOUNDATION (The "Magic" Package)
+# ---------------------------------------------------------
+packages:
+  remote_package:
+    url: https://github.com/inytar/waveshare-esp32-s3-touch-lcd-7-esphome
+    ref: main
+    file: waveshare-esp32-s3-touch-lcd-7.yaml
+    refresh: 1h
 
 esp32:
   board: esp32-s3-devkitc-1
   framework:
     type: esp-idf
-#    platform_version: 6.8.1
-#    version: 5.3.0
-#    sdkconfig_options:
-#      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"
-#      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
-#      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: y
-#      CONFIG_SPIRAM_RODATA: y
 
-psram:
-  mode: octal
-  speed: 80MHz
-
-  
-
-# Enable logging
+# ---------------------------------------------------------
+# 2. SYSTEM OPTIMIZATION
+# ---------------------------------------------------------
 logger:
   level: DEBUG
   hardware_uart: UART0
+  baud_rate: 115200
 
-# Enable Home Assistant API
 api:
   encryption:
     key: "Dgnfz00FQ13sV8dbeFs2Qq8GKbnaKLQLYAJyYlgqDGw="
@@ -45,50 +88,20 @@ ota:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+  # CRITICAL FIX: Disable power save to prevent WDT resets
+  power_save_mode: NONE 
   on_connect:
     - component.update: my_online_image
-
-  # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
-    ssid: "Waveshare7Inch Fallback Hotspot"
+    ssid: "Waveshare7Inch Fallback"
     password: "C39c7PHHW3m1"
 
-packages:
-  common_files:
-    url: https://github.com/agillis/esphome-configs
-    ref: main # optional
-    files: [modules/common/color.yaml,
-            modules/common/fonts.yaml]
+web_server:
+  port: 80
+  include_internal: True
+  version: 3
 
-i2c:
-  - id: bus_a
-    sda: GPIO8
-    scl: GPIO9
-    scan: true
-
-external_components:
-
-  # CH422G I/O Expander
-  # https://github.com/esphome/esphome/pull/7356
-  - source: github://pr#7356
-    components: [ch422g]
-
-ch422g:
-  - id: io_ex
-    address: 0x24
-
-# Toggles backlight of Waveshare ESP32-S3-Touch-LCD-4.3
-switch:
-  - platform: gpio
-    name: "Backlight Toggle"
-    id: backlight_switch
-    pin:
-      ch422g: io_ex
-      number: 2
-        #      allow_other_uses: true
-# CH422G saves the last state internally, but gpio switch sets state as off except when using RESTORE_ modes
-    restore_mode: ALWAYS_ON
-
+captive_portal:
 
 time:
   - platform: homeassistant
@@ -103,8 +116,6 @@ time:
             - text_sensor.template.publish:
                 id: device_last_restart
                 state: !lambda 'return id(homeassistant_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'
-
-    # Update the clock every second
     on_time:
       - seconds: "*"
         then:
@@ -113,48 +124,34 @@ time:
 script:
   - id: time_update
     then:
-      - lvgl.indicator.update:
-          id: second_hand
-          value: !lambda |-
-            return id(homeassistant_time).now().second;
-      - lvgl.indicator.update:
-          id: minute_hand
-          value: !lambda |-
-            return id(homeassistant_time).now().minute;
-      - lvgl.indicator.update:
-          id: hour_hand
-          value: !lambda |-
-            auto now = id(homeassistant_time).now();
-            return std::fmod(now.hour, 12) * 60 + now.minute;
-      - lvgl.label.update:
-          id: date_label
-          text: !lambda |-
-            static const char * const mon_names[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
-            static char date_buf[8];
-            auto now = id(homeassistant_time).now();
-            snprintf(date_buf, sizeof(date_buf), "%s %2d", mon_names[now.month-1], now.day_of_month);
-            return date_buf;
-      - lvgl.label.update:
-          id: day_label
-          text: !lambda |-
-            static const char * const day_names[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
-            return day_names[id(homeassistant_time).now().day_of_week - 1];
-
-
-touchscreen:
-  platform: gt911
-  address: 0x5D
-  id: my_touchscreen
-  update_interval: 16ms
-  interrupt_pin: 4
-  on_touch:
-    - lambda: |-
-          ESP_LOGI("cal", "x=%d, y=%d, x_raw=%d, y_raw=%0d",
-              touch.x,
-              touch.y,
-              touch.x_raw,
-              touch.y_raw
-              );
+      - if:
+          condition:
+            lambda: 'return id(second_hand) != nullptr;'
+          then:
+            - lvgl.indicator.update:
+                id: second_hand
+                value: !lambda return id(homeassistant_time).now().second;
+            - lvgl.indicator.update:
+                id: minute_hand
+                value: !lambda return id(homeassistant_time).now().minute;
+            - lvgl.indicator.update:
+                id: hour_hand
+                value: !lambda |-
+                  auto now = id(homeassistant_time).now();
+                  return std::fmod(now.hour, 12) * 60 + now.minute;
+            - lvgl.label.update:
+                id: date_label
+                text: !lambda |-
+                  static const char * const mon_names[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+                  static char date_buf[8];
+                  auto now = id(homeassistant_time).now();
+                  snprintf(date_buf, sizeof(date_buf), "%s %2d", mon_names[now.month-1], now.day_of_month);
+                  return date_buf;
+            - lvgl.label.update:
+                id: day_label
+                text: !lambda |-
+                  static const char * const day_names[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+                  return day_names[id(homeassistant_time).now().day_of_week - 1];
 
 http_request:
   verify_ssl: False
@@ -170,71 +167,18 @@ online_image:
         id: first_image
         src: my_online_image
 
-
-display:
-  - platform: rpi_dpi_rgb
-    id: my_display
-    #rotation: 90
-    auto_clear_enabled: false
-    update_interval: never
-    color_order: RGB
-    pclk_frequency: 14MHz
-    dimensions:
-      width: 800
-      height: 480
-    de_pin:
-      number: 5
-    reset_pin:
-      ch422g: io_ex
-      number: 3
-    enable_pin:
-      ch422g: io_ex
-      number: 5
-      allow_other_uses: false
-    hsync_pin:
-      number: 46
-      ignore_strapping_warning: true
-    vsync_pin:
-      number: 3
-      ignore_strapping_warning: true
-    pclk_pin: 7
-    pclk_inverted: false
-    hsync_back_porch: 10
-    hsync_front_porch: 20
-    hsync_pulse_width: 10
-    vsync_back_porch: 10
-    vsync_front_porch: 10
-    vsync_pulse_width: 10
-    data_pins:
-      red:
-        - 1 # R3
-        - 2 # R4
-        - 42 # R5
-        - 41 # R6
-        - 40 # R7
-      green:
-        - 39 # G2
-        - 0 # G3
-        - 45 # G4
-        - 48 # G5
-        - 47 # G6
-        - 21 # G7
-      blue:
-        - 14 # B3
-        - 38 # B4
-        - 18 # B5
-        - 17 # B6
-        - 10 # B7
-
 image:
   - file: bulb.png
     id: bulb_image
     resize: 750x420
     type: RGB565
 
-
+# ---------------------------------------------------------
+# 3. LVGL INTERFACE
+# ---------------------------------------------------------
 lvgl:
-  buffer_size: 25%
+  # REDUCED BUFFER: 10% is enough and prevents OOM/WDT issues
+  buffer_size: 10%
   pages:
     - id: main_page      
       widgets:
@@ -250,7 +194,7 @@ lvgl:
               height: 350
               width: 350
               scales:
-                - range_from: 00 # scale for the needle value
+                - range_from: 0
                   range_to: 1000
                   angle_range: 240
                   rotation: 150
@@ -266,7 +210,7 @@ lvgl:
                         color_start: 0x0000bd
                         color_end: 0xbd0000
                         width: 1
-                - range_from: 0 # scale for the value labels
+                - range_from: 0
                   range_to: 100
                   angle_range: 240
                   rotation: 150
@@ -292,13 +236,12 @@ lvgl:
                     align: CENTER
                     y: 65
 
-
           - meter:
               align: RIGHT_MID
               height: 350
               width: 350
               scales:
-                - range_from: 00 # scale for the needle value
+                - range_from: 0
                   range_to: 1000
                   angle_range: 240
                   rotation: 150
@@ -314,7 +257,7 @@ lvgl:
                         color_start: 0x0000bd
                         color_end: 0xbd0000
                         width: 1
-                - range_from: 0 # scale for the value labels
+                - range_from: 0
                   range_to: 100
                   angle_range: 240
                   rotation: 150
@@ -339,6 +282,7 @@ lvgl:
                     text: "Inside Humidity"
                     align: CENTER
                     y: 65
+
     - id: meter_page_2
       widgets:
           - meter:
@@ -346,7 +290,7 @@ lvgl:
               height: 350
               width: 350
               scales:
-                - range_from: 00 # scale for the needle value
+                - range_from: 0
                   range_to: 1000
                   angle_range: 240
                   rotation: 150
@@ -362,7 +306,7 @@ lvgl:
                         color_start: 0x0000bd
                         color_end: 0xbd0000
                         width: 1
-                - range_from: 0 # scale for the value labels
+                - range_from: 0
                   range_to: 100
                   angle_range: 240
                   rotation: 150
@@ -388,13 +332,12 @@ lvgl:
                     align: CENTER
                     y: 65
 
-
           - meter:
               align: RIGHT_MID
               height: 350
               width: 350
               scales:
-                - range_from: 00 # scale for the needle value
+                - range_from: 0
                   range_to: 1000
                   angle_range: 240
                   rotation: 150
@@ -410,7 +353,7 @@ lvgl:
                         color_start: 0x0000bd
                         color_end: 0xbd0000
                         width: 1
-                - range_from: 0 # scale for the value labels
+                - range_from: 0
                   range_to: 100
                   angle_range: 240
                   rotation: 150
@@ -443,8 +386,8 @@ lvgl:
               height: 400
               width: 400
               scales:
-                - range_from: 280  # 28.00 inHg (scaled by 100)
-                  range_to: 310    # 31.00 inHg
+                - range_from: 280
+                  range_to: 310
                   angle_range: 240
                   rotation: 150
                   indicators:
@@ -459,7 +402,7 @@ lvgl:
                         color_start: 0x0000bd
                         color_end: 0xbd0000
                         width: 1
-                - range_from: 28 # scale for the value labels
+                - range_from: 28
                   range_to: 31
                   angle_range: 240
                   rotation: 150
@@ -475,8 +418,6 @@ lvgl:
                       color: 0x404040
                       label_gap: 1
 
-
-
           - label:
               styles: date_style
               id: barometer_text
@@ -490,16 +431,11 @@ lvgl:
               align: CENTER
               y: 65
 
-
-
-
-
-
     - id: clock_page
       width: 100%
       bg_color: Black
       widgets:
-        - obj: # clock container
+        - obj:
             height: 470
             width: 470
             align: CENTER
@@ -507,16 +443,15 @@ lvgl:
             border_width: 0
             bg_color: Black
             widgets:
-              - meter: # clock face
+              - meter:
                   height: 95%
                   width: 95%
                   align: CENTER
                   bg_color: White
-#                  bg_opa: TRANSP
                   border_width: 0
                   text_color: 0x000000
                   scales:
-                    - range_from: 0 # minutes scale
+                    - range_from: 0
                       range_to: 60
                       angle_range: 360
                       rotation: 270
@@ -532,7 +467,7 @@ lvgl:
                             color: black
                             r_mod: -4
                             value: 0
-                    - range_from: 1 # hours scale for labels
+                    - range_from: 1
                       range_to: 12
                       angle_range: 330
                       rotation: 300
@@ -546,7 +481,7 @@ lvgl:
                           length: 10
                           color: black
                           label_gap: 12
-                    - range_from: 0 # hi-res hours scale for hand
+                    - range_from: 0
                       range_to: 720
                       angle_range: 360
                       rotation: 270
@@ -559,8 +494,6 @@ lvgl:
                             color: black
                             r_mod: -40
                             value: 0
-
-                    # Second hand
                     - range_from: 0
                       range_to: 60
                       angle_range: 360
@@ -571,7 +504,6 @@ lvgl:
                             width: 2
                             color: Red
                             r_mod: -10
-
               - label:
                   styles: date_style
                   id: day_label
@@ -590,7 +522,7 @@ lvgl:
             x: 70  
             y: 20
             text_font: montserrat_20
-            text: 'Lance Rules! Yes he does...'
+            text: 'Loading...'
         - textarea:
             id: current_weather_label
             x: 40  
@@ -598,14 +530,13 @@ lvgl:
             height: 170
             width: 320
             text_font: montserrat_20
-            text: 'Lance Rules! Yes he does...'
-
+            text: 'Loading...'
         - label:
             id: current_weather_label_dt1
             x: 460  
             y: 20
             text_font: montserrat_20
-            text: 'Lance Rules! Yes he does...'
+            text: 'Loading...'
         - textarea:
             id: current_weather_label_1
             x: 440  
@@ -613,14 +544,13 @@ lvgl:
             height: 170
             width: 320
             text_font: montserrat_20
-            text: 'Lance Rules! Yes he does...'
-
+            text: 'Loading...'
         - label:
             id: current_weather_label_dt2
             x: 70
             y: 240
             text_font: montserrat_20
-            text: 'Lance Rules! Yes he does...'
+            text: 'Loading...'
         - textarea:
             id: current_weather_label_2
             x: 40  
@@ -628,14 +558,13 @@ lvgl:
             height: 170
             width: 320
             text_font: montserrat_20
-            text: 'Lance Rules! Yes he does...'
-
+            text: 'Loading...'
         - label:
             id: current_weather_label_dt3
             x: 460  
             y: 240
             text_font: montserrat_20
-            text: 'Lance Rules! Yes he does...'
+            text: 'Loading...'
         - textarea:
             id: current_weather_label_3
             x: 440  
@@ -643,7 +572,7 @@ lvgl:
             height: 170
             width: 320
             text_font: montserrat_20
-            text: 'Lance Rules! Yes he does...'
+            text: 'Loading...'
 
   top_layer:
     widgets:
@@ -661,7 +590,7 @@ lvgl:
                 text: "\uF0355"
                 on_press:
                   then:
-                     switch.turn_on: backlight_switch              
+                     light.turn_on: lcdbacklight              
               - id: page_prev
                 text: "\uF053"
                 on_press:
@@ -676,7 +605,7 @@ lvgl:
                 text: "\uF0355"
                 on_press:
                   then:
-                     switch.turn_off: backlight_switch
+                     light.turn_off: lcdbacklight
               - id: page_next
                 text: "\uF054"
                 on_press:
@@ -692,10 +621,10 @@ lvgl:
       border_color: 0x0077b3
       border_width: 1
       text_color: 0xFFFFFF
-      pressed: # set some button colors to be different in pressed state
+      pressed: 
         bg_color: 0x006699
         bg_grad_color: 0x00334d
-      checked: # set some button colors to be different in checked state
+      checked: 
         bg_color: 0x1d5f96
         bg_grad_color: 0x03324A
         text_color: 0xfff300
@@ -705,7 +634,7 @@ lvgl:
       border_width: 0
       text_color: 0xFFFFFF
       pad_all: 0
-      items: # set all your buttonmatrix buttons to use your custom defined styles and font
+      items: 
         bg_color: 0x2F8CD8
         bg_grad_color: 0x005782
         bg_grad_dir: VER
@@ -768,15 +697,17 @@ lvgl:
           text_color: 0xFFFFFF
           width: 100%
           height: 30
-        - id: date_style      # choose an ID for your definition
-          text_font: unscii_16
+        - id: date_style
+          text_font: montserrat_20
           align: center
           text_color: 0x000000
           bg_opa: cover
           radius: 4
           pad_all: 2
 
-
+# ---------------------------------------------------------
+# 4. SENSORS & DATA MAPPING
+# ---------------------------------------------------------
 sensor:
   - platform: homeassistant
     id: inside_temperature
@@ -943,33 +874,22 @@ text_sensor:
           id: current_weather_label_dt3
           text: !lambda return x.c_str();
 
-
-
 # Restart & Safe Mode Buttons
 button:
   - platform: restart
     name: "Restart Device"
-
   - platform: safe_mode
     name: "Restart in Safe Mode"      
 
-  - platform: template
-    name: "Next Page"
-    on_press:
-      then:
-        - lvgl.page.next
-
-
-  - platform: template
-    name: "Previous Page"
-    on_press:
-      then:
-        - lvgl.page.previous
-
-web_server:
-  port: 80
-  include_internal: True
-  version: 3
-
-captive_portal:
-    
+# FONTS
+font:
+  - file: "gfonts://Montserrat"
+    id: montserrat_20
+    size: 20
+  - file: "gfonts://Montserrat"
+    id: montserrat_14
+    size: 14
+  # Used by your custom clock
+  - file: "gfonts://Montserrat"
+    id: unscii_16
+    size: 16
