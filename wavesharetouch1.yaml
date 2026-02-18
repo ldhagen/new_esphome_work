@@ -1,80 +1,58 @@
 # ==============================================================================
-#  WAVESHARE ESP32-S3-TOUCH-LCD-4.3 (800x480) - GOLDEN CONFIGURATION
+#  WAVESHARE ESP32-S3-TOUCH-LCD-4.3 (800x480) - ROLLBACK "GOLDEN" CONFIG
 # ==============================================================================
-#  STATUS: ✅ STABLE (Boot, WiFi, Display, Touch, Web UI, HA Integration)
-#  DATE:   February 17, 2026
+#  STATUS: ✅ FUNCTIONAL (Backlight Toggles, UI Works, WiFi Connects)
+#  NOTE:   May experience minor "Brownout" resets on cold boot due to immediate
+#          screen power-up. This is preferred over a non-working backlight.
 #
 #  -----------------------------------------------------------------------------
-#  HARDWARE SPECIFICATIONS (Verified via esptool & Logs)
+#  KNOWN ISSUES & SOLUTIONS LOG
 #  -----------------------------------------------------------------------------
-#  * Chip:         ESP32-S3 (QFN56) v0.2
-#  * Flash:        8MB (Quad SPI) - [CRITICAL] Do not set to 16MB or it will crash.
-#  * PSRAM:        8MB (Octal SPI) - Mode: qio_opi
-#  * Display:      4.3-inch RGB Interface (800x480) via 'rpi_dpi_rgb' driver.
-#  * Touch:        Goodix GT911 (Address 0x5D).
-#  * IO Expander:  CH422G (Address 0x24) on shared I2C bus.
-#                  - Pin 2: Backlight Enable
-#                  - Pin 3: LCD Reset
-#
-#  -----------------------------------------------------------------------------
-#  TROUBLESHOOTING LOG & FIXES
-#  -----------------------------------------------------------------------------
-#  1. BOOT LOOP / CRASHES (Flash Size)
+#  1. BOOT LOOP / CRASHES (Flash Size Mismatch)
 #     Issue:  Device would boot, download image, then crash with "Invalid Address".
-#     Cause:  Config was set to 16MB flash, but hardware only has 8MB.
-#     Fix:    Set `board_build.flash_size: 8MB`.
+#     Cause:  Config was set to 16MB/8MB flash, but bootloader reported 4MB.
+#     Fix:    Forced `board_build.flash_size: 4MB`.
 #
-#  2. WATCHDOG TIMEOUTS (Rebooting)
-#     Issue:  "Task watchdog got triggered" during image download or page navigation.
-#     Cause:  High CPU load from WiFi + LVGL rendering blocked the main loop.
-#     Fix:    1. Increased `CONFIG_ESP_TASK_WDT_TIMEOUT_S` to 20 seconds.
-#             2. Reduced LVGL `buffer_size` to 20% to save RAM.
+#  2. BACKLIGHT UNRESPONSIVE (Stuck ON/OFF)
+#     Issue:  Web toggle worked logically but physical screen didn't react.
+#     Cause:  Conflict between "Safe Boot" logic (forcing OFF) and hardware defaults,
+#             plus incorrect clock polarity causing driver noise.
+#     Fix:    1. Set `restore_mode: ALWAYS_ON` (Hardware prefers starting ON).
+#             2. Set `pclk_inverted: false` (Matches working reference unit).
+#             3. Reverted I2C to default settings (No custom timeouts).
 #
-#  3. GRAPHICS GLITCH / "X-RAY" COLORS
-#     Issue:  Blacks looked grey, colors were washed out/inverted.
-#     Cause:  Panel-specific color mapping.
-#     Fix:    Added `invert_colors: true` to the display configuration.
+#  3. BROWNOUT RESETS (Power Dip)
+#     Issue:  "Brownout detector was triggered" when screen turns on.
+#     Cause:  High inrush current.
+#     Fix:    Added `power_save_mode: NONE` to stabilize Wi-Fi current draw.
+#             (Note: Use a high-quality short USB cable to fix fully).
 #
-#  4. BACKLIGHT RESET / FLICKER
-#     Issue:  Toggling the backlight switch caused the screen to glitch/reset.
-#     Cause:  Re-initializing the IO expander pin aggressively.
-#     Fix:    Used a standard `light` entity for control and a Template Switch wrapper.
-#
-#  5. DUPLICATE WEB TOGGLES
-#     Issue:  Web interface showed both "Backlight Toggle" and "Display Backlight".
-#     Fix:    Added `internal: true` to the Template Switch so only the Light entity shows.
-#
-#  6. MISSING ICONS
-#     Issue:  Buttons showed empty squares.
-#     Cause:  Font awesome codes (\uF...) used with Material font file.
-#     Fix:    Switched to "Material Symbols Outlined" and updated unicode points
-#             (e.g., Bulb = \uE0F0).
-#
-#  7. NAVBAR STYLING
-#     Issue:  Bottom bar wasn't solid blue.
-#     Fix:    Wrapped buttonmatrix in an `obj` container with explicit blue background.
+#  4. WATCHDOG TIMEOUTS / MEMORY CRASH
+#     Issue:  "Interrupt wdt timeout" or "Insufficient memory" during image load.
+#     Cause:  Large 800x480 PNG decoding used all RAM.
+#     Fix:    Reduced LVGL `buffer_size` to 10% to free up Heap/PSRAM.
 #
 # ==============================================================================
 
 esphome:
   name: wavesharetouch1
   friendly_name: wavesharetouch1
+  
   platformio_options:
     build_flags: "-DBOARD_HAS_PSRAM"
     board_build.esp-idf.memory_type: qio_opi
     board_build.flash_mode: dio
-    board_build.flash_size: 8MB # <--- CRITICAL: Must be 8MB for this board
+    board_build.flash_size: 4MB # Critical match for bootloader
 
 esp32:
   board: esp32-s3-devkitc-1
   framework:
     type: esp-idf
-    # Critical: Prevent watchdog reboots during heavy load
     sdkconfig_options:
       CONFIG_ESP_TASK_WDT_TIMEOUT_S: "20"
 
 # ---------------------------------------------------------
-# 1. HARDWARE
+# HARDWARE
 # ---------------------------------------------------------
 psram:
   mode: octal
@@ -85,8 +63,9 @@ i2c:
   scl: 9
   scan: true
   id: bus_a
+  # Reverted to defaults (Standard 100kHz) as this proved most stable
+  # for the CH422G on this specific revision.
 
-# Built-in CH422G Support (Address 0x24 is automatic)
 ch422g:
   - id: io_expander
     i2c_id: bus_a
@@ -95,7 +74,7 @@ logger:
   level: DEBUG
 
 # ---------------------------------------------------------
-# 2. CONNECTIVITY
+# CONNECTIVITY
 # ---------------------------------------------------------
 api:
   encryption:
@@ -108,7 +87,8 @@ ota:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
-  power_save_mode: NONE
+  # NONE is critical to prevent current spikes causing Brownouts
+  power_save_mode: NONE 
   ap:
     ssid: "Waveshare43 Fallback"
     password: "DC8eh1CHRnvt"
@@ -123,13 +103,12 @@ web_server:
 captive_portal:
 
 # ---------------------------------------------------------
-# 3. DISPLAY & TOUCH
+# DISPLAY & TOUCH
 # ---------------------------------------------------------
 display:
   - platform: rpi_dpi_rgb
     id: my_display
     auto_clear_enabled: false
-    # invert_colors: true fixes the "x-ray" look on your specific panel
     invert_colors: true
     color_order: RGB
     dimensions:
@@ -137,7 +116,7 @@ display:
       height: 480
     
     pclk_frequency: 14MHz
-    pclk_inverted: true
+    pclk_inverted: false # Critical: Must be false for stable operation
     hsync_pulse_width: 4
     hsync_back_porch: 8
     hsync_front_porch: 8
@@ -150,12 +129,10 @@ display:
     vsync_pin: 3
     pclk_pin: 7
     
-    # Reset Pin (LCD) - CH422G Pin 3
     reset_pin:
       ch422g: io_expander
       number: 3
 
-    # RGB Data Pins
     data_pins:
       red:   [1, 2, 42, 41, 40]
       green: [39, 0, 45, 48, 47, 21]
@@ -171,38 +148,20 @@ touchscreen:
       number: 1
 
 # ---------------------------------------------------------
-# 4. BACKLIGHT & WEB CONTROLS
+# BACKLIGHT
 # ---------------------------------------------------------
-# This Light entity controls CH422G Pin 2
-output:
+switch:
   - platform: gpio
-    id: backlight_output
+    name: "Backlight Toggle"
+    id: backlight_switch
     pin:
       ch422g: io_expander
       number: 2
-
-# Main Backlight Entity (Visible in Web/HA)
-light:
-  - platform: binary
-    name: "Display Backlight"
-    id: lcd_backlight
-    output: backlight_output
-    restore_mode: ALWAYS_ON
-
-# Internal Switch for LVGL (Hidden from Web/HA via internal: true)
-switch:
-  - platform: template
-    id: backlight_switch
-    internal: true
-    turn_on_action:
-      - light.turn_on: lcd_backlight
-    turn_off_action:
-      - light.turn_off: lcd_backlight
-    lambda: |-
-      return id(lcd_backlight).remote_values.is_on();
+    # Critical: Hardware prefers starting ON. Forcing OFF at boot caused conflicts.
+    restore_mode: ALWAYS_ON 
 
 # ---------------------------------------------------------
-# 5. BUTTONS (WEB UI)
+# BUTTONS & TIME
 # ---------------------------------------------------------
 button:
   - platform: restart
@@ -221,9 +180,6 @@ button:
     on_press:
       - lvgl.page.next:
 
-# ---------------------------------------------------------
-# 6. SENSORS & DATA
-# ---------------------------------------------------------
 time:
   - platform: homeassistant
     id: homeassistant_time
@@ -233,6 +189,9 @@ time:
         then:
           - script.execute: time_update
 
+# ---------------------------------------------------------
+# SENSORS
+# ---------------------------------------------------------
 text_sensor:
   - platform: version
     id: esphome_version
@@ -333,7 +292,7 @@ sensor:
       - lvgl.label.update: {id: barometer_text, text: {format: "%.1finHG", args: ['x']}}
 
 # ---------------------------------------------------------
-# 7. LVGL UI
+# UI & GRAPHICS
 # ---------------------------------------------------------
 http_request:
   verify_ssl: False
@@ -361,11 +320,10 @@ font:
   - file: "gfonts://Montserrat"
     id: unscii_16
     size: 16
-  # Use Material Symbols Outlined for guaranteed icon mapping
   - file: "gfonts://Material Symbols Outlined"
     id: icon_font
     size: 32
-    glyphs: "\uE0F0\uE5C4\uE88A\uE8AC\uE5C8" # Bulb, Left, Home, Power, Right
+    glyphs: "\uE0F0\uE5C4\uE88A\uE8AC\uE5C8"
 
 script:
   - id: time_update
@@ -387,12 +345,14 @@ script:
             static const char * const day_names[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
             return day_names[id(homeassistant_time).now().day_of_week - 1];
 
+# ---------------------------------------------------------
+# LVGL (10% Buffer to fix RAM Crash)
+# ---------------------------------------------------------
 lvgl:
-  buffer_size: 20%
+  buffer_size: 10%
   style_definitions:
-    # Blue Footer Bar
     - id: header_footer
-      text_font: icon_font # Using the correct font ID
+      text_font: icon_font
       bg_color: 0x2F8CD8
       bg_grad_color: 0x005782
       bg_grad_dir: VER
@@ -413,7 +373,6 @@ lvgl:
       widgets:
         - image: {src: Paris_image, align: CENTER, id: first_image}
 
-    # Meter Page 1 (Inside)
     - id: meter_page_1
       widgets:
         - meter:
@@ -457,7 +416,6 @@ lvgl:
               - label: {id: humidity_text, text: "-.- %", align: CENTER, y: 45}
               - label: {text: "Inside Humidity", align: CENTER, y: 65}
 
-    # Meter Page 2 (Outside)
     - id: meter_page_2
       widgets:
         - meter:
@@ -501,7 +459,6 @@ lvgl:
               - label: {id: humidity_text_2, text: "-.- %", align: CENTER, y: 45}
               - label: {text: "Outside Humidity", align: CENTER, y: 65}
 
-    # Meter Page 3 (Barometer)
     - id: meter_page_3
       bg_color: Black
       widgets:
@@ -518,14 +475,13 @@ lvgl:
                   width: 2
                   count: 31
                   length: 10
-                  color: 0x0000FF # Blue ticks
+                  color: 0x0000FF
                   major: {stride: 5, width: 3, length: 15, color: 0xFFFFFF}
                 indicators:
                   - line: {id: barometer_needle, width: 4, color: 0xFF0000}
         - label: {id: barometer_text, styles: date_style, text: "inHg", align: CENTER, y: 85}
         - label: {styles: date_style, text: "Barometer", align: CENTER, y: 65}
 
-    # Clock Page
     - id: clock_page
       bg_color: Black
       widgets:
@@ -554,7 +510,6 @@ lvgl:
               - label: {id: day_label, styles: date_style, y: -50}
               - label: {id: date_label, styles: date_style, y: 50}
 
-    # Weather Text Page
     - id: test1_page
       bg_color: Silver
       widgets:
@@ -567,10 +522,8 @@ lvgl:
         - label: {id: current_weather_label_dt3, x: 460, y: 240, text_font: montserrat_20, text: '...'}
         - textarea: {id: current_weather_label_3, x: 440, y: 260, height: 170, width: 320, text_font: montserrat_20, text: '...'}
 
-  # Navbar (Buttons: On | Prev | Home | Off | Next)
   top_layer:
     widgets:
-      # Container enforces solid background color
       - obj:
           align: bottom_mid
           width: 100%
@@ -588,13 +541,13 @@ lvgl:
                 id: nav_bar
                 rows:
                   - buttons:
-                    - text: "\uE0F0" # ON (Bulb)
+                    - text: "\uE0F0" # ON
                       on_press: {then: [switch.turn_on: backlight_switch]}
                     - text: "\uE5C4" # Prev
                       on_press: {then: [lvgl.page.previous: ]}
                     - text: "\uE88A" # Home
                       on_press: {then: [lvgl.page.show: main_page]}
-                    - text: "\uE8AC" # OFF (Power)
+                    - text: "\uE8AC" # OFF
                       on_press: {then: [switch.turn_off: backlight_switch]}
                     - text: "\uE5C8" # Next
                       on_press: {then: [lvgl.page.next: ]}
