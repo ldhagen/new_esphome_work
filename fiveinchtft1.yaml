@@ -1,4 +1,51 @@
-#https://devices.esphome.io/devices/Elecrow-5inch-ESP32-display#advanced-configuration-using-lgvl-graphics-library
+# ==============================================================================
+#  PROJECT: 5-Inch TFT Display (ESP32-S3) - STABILITY & MEMORY FIX
+#  DATE:    February 2026
+#  STATUS:  STABLE (ESPHome 2026.1.5 / ESP-IDF 5.5.1)
+# ==============================================================================
+#
+#  CRITICAL LEARNINGS & TECHNICAL POST-MORTEM
+#  -----------------------------------------------------------------------------
+#  1. THE PROBLEM: "esp-aes: Failed to allocate memory" & Core 0 Panics
+#     The ESP32-S3 was crashing during Wi-Fi/API connection. The root cause was
+#     exhaustion of Internal SRAM (DMA-capable memory).
+#
+#     - High-Res Display (800x480 RGB): The frame buffer for this display is
+#       massive. While it resides in PSRAM, the display controller (LCD_CAM)
+#       requires internal DMA descriptors and buffers to push that data.
+#     - Wi-Fi & Encryption: By default, the ESP-IDF Wi-Fi stack and Hardware
+#       Encryption Accelerators (AES/SHA) typically demand Internal SRAM for
+#       speed and DMA access.
+#
+#     Result: The display + Wi-Fi + Encryption tried to grab more Internal RAM
+#             than physically existed, causing allocation failures and crashes.
+#
+#  2. THE "MAGIC COMBINATION" FIXES
+#     We stabilized the device by forcing heavy buffers out of Internal SRAM
+#     and into the 8MB PSRAM:
+#
+#     a) CONFIG_MBEDTLS_HARDWARE_AES: n  (MOST CRITICAL)
+#        - Why: The hardware crypto accelerator requires internal DMA memory.
+#        - Fix: Disabling it forces Software AES. Software AES is slightly
+#          slower but can run entirely in PSRAM, saving precious Internal RAM.
+#
+#     b) CONFIG_ESP32S3_DATA_CACHE_32KB: y
+#        - Why: The CPU cache uses Internal SRAM.
+#        - Fix: Reducing cache from 64KB to 32KB instantly freed up 32KB of
+#          Internal SRAM for the network stack.
+#
+#     c) CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP: y
+#        - Fix: Explicitly tells the framework to put Wi-Fi buffers in PSRAM.
+#
+#     d) CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC: y
+#        - Fix: Allows TLS/SSL encryption contexts to live in PSRAM.
+#
+#  3. OTHER KEY SETTINGS
+#     - Framework: Pinned to ESP-IDF 5.5.1 for stability.
+#     - Wi-Fi: `fast_connect: true` & `power_save_mode: NONE` added to stop
+#       authentication loops.
+#     - API: Switched to Encryption Key (password auth is deprecated/removed).
+# ==============================================================================
 
 esphome:
   name: fiveinchtft1
@@ -9,13 +56,30 @@ esphome:
 
 esp32:
   board: esp32-s3-devkitc-1
+  variant: esp32s3
   framework:
     type: esp-idf
+    version: 5.5.1
     sdkconfig_options:
+      # CPU & Cache Optimization (Frees 32KB Internal SRAM)
       CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: y
-      CONFIG_ESP32S3_DATA_CACHE_64KB: y
+      CONFIG_ESP32S3_DATA_CACHE_32KB: y
+      
+      # PSRAM Performance
       CONFIG_SPIRAM_FETCH_INSTRUCTIONS: y
       CONFIG_SPIRAM_RODATA: y
+      
+      # CRITICAL MEMORY RELOCATION SETTINGS
+      # 1. Force Wi-Fi buffers into PSRAM
+      CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP: y
+      
+      # 2. Allow Encryption context in PSRAM
+      CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC: y
+      
+      # 3. Disable Hardware Crypto (Forces SW Crypto -> Uses PSRAM instead of Internal DMA)
+      CONFIG_MBEDTLS_HARDWARE_AES: n
+      CONFIG_MBEDTLS_HARDWARE_MPI: n
+      CONFIG_MBEDTLS_HARDWARE_SHA: n
 
 psram:
   mode: octal
@@ -23,11 +87,9 @@ psram:
 
 # Enable logging
 logger:
-  level: debug 
-
-debug:
-  update_interval: 60s
-
+  level: DEBUG
+  hardware_uart: UART0
+  baud_rate: 115200 
 
 # Enable Home Assistant API
 api:
@@ -41,16 +103,54 @@ ota:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+  fast_connect: true 
+  power_save_mode: NONE
+  reboot_timeout: 0s 
+
   on_connect:
     - component.update: my_online_image
 
-  # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
     ssid: "Fiveinchtft1 Fallback Hotspot"
     password: "3Ps5BAJqCVne"
 
+captive_portal:
 
-# Define a PWM output on the ESP32
+# Display Configuration (RPI-DPI-RGB)
+display:
+  - platform: rpi_dpi_rgb
+    id: main_display
+    color_order: RGB
+    invert_colors: True
+    update_interval: never
+    auto_clear_enabled: false
+    dimensions:
+      width: 800
+      height: 480
+    de_pin: 40
+    hsync_pin: 39
+    vsync_pin: 41
+    pclk_pin: 0
+    pclk_frequency: 12MHz
+    data_pins:
+      red:   [45, 48, 47, 21, 14]
+      green: [5, 6, 7, 15, 16, 4]
+      blue:  [8, 3, 46, 9, 1]
+
+# I2C and Touchscreen
+i2c:
+  sda: GPIO19
+  scl: GPIO20
+  scan: true
+
+touchscreen:
+  platform: gt911
+  id: main_touchscreen
+  on_touch:
+    - lambda: |-
+          ESP_LOGI("cal", "x=%d, y=%d, x_raw=%d, y_raw=%0d", touch.x, touch.y, touch.x_raw, touch.y_raw);
+
+# Hardware PWM for Backlight
 output:
   - platform: ledc
     pin: 2
@@ -58,13 +158,13 @@ output:
     id: gpio_backlight_pwm
 
 light:
-  - platform: monochromatic # Define a monochromatic, dimmable light for the backlight
+  - platform: monochromatic
     output: gpio_backlight_pwm
     name: Display Backlight
     id: back_light
     restore_mode: ALWAYS_ON
 
-
+# Time and Date Logic
 time:
   - platform: homeassistant
     id: homeassistant_time
@@ -78,63 +178,20 @@ time:
             - text_sensor.template.publish:
                 id: device_last_restart
                 state: !lambda 'return id(homeassistant_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'
-
-    # Update the clock every second
     on_time:
       - seconds: "*"
         then:
           - script.execute: time_update
-
-#script:
-#  - id: time_update
-#    then:
-#      - lvgl.indicator.update:
-#          id: second_hand
-#          value: !lambda |-
-#            return id(homeassistant_time).now().second;
-#      - lvgl.indicator.update:
-#          id: minute_hand
-#          value: !lambda |-
-#            return id(homeassistant_time).now().minute;
-#      - lvgl.indicator.update:
-#          id: hour_hand
-#          value: !lambda |-
-#            auto now = id(homeassistant_time).now();
-#            return std::fmod(now.hour + 60, 12) * 60 + now.minute;
-
-
-#below modified from https://esphome.io/cookbook/lvgl#an-analog-clock with addition of second hand
-#time:
-#  - platform: homeassistant
-#    id: homeassistant_time
-#    timezone: America/Chicago
-#    on_time_sync:
-#      - script.execute: time_update
-#
-#    # Update the clock every second
-#    on_time:
-#      - seconds: "*"
-#        then:
-#          - script.execute: time_update
-#      - if:
-#          condition:
-#            lambda: 'return id(device_last_restart).state == "";'
-#          then:
-#            - text_sensor.template.publish:
-#                id: device_last_restart
-#                state: !lambda 'return id(homeassistant_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'
 
 script:
   - id: time_update
     then:
       - lvgl.indicator.update:
           id: second_hand
-          value: !lambda |-
-            return id(homeassistant_time).now().second;
+          value: !lambda return id(homeassistant_time).now().second;
       - lvgl.indicator.update:
           id: minute_hand
-          value: !lambda |-
-            return id(homeassistant_time).now().minute;
+          value: !lambda return id(homeassistant_time).now().minute;
       - lvgl.indicator.update:
           id: hour_hand
           value: !lambda |-
@@ -154,76 +211,21 @@ script:
             static const char * const day_names[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
             return day_names[id(homeassistant_time).now().day_of_week - 1];
 
-display:
-  - platform: rpi_dpi_rgb
-    id: main_display
-    color_order: RGB
-    invert_colors: True
-    update_interval: never
-    auto_clear_enabled: false # takes 2.8 seconds to clear the display
-    dimensions:
-      width: 800
-      height: 480
-    de_pin: 40
-    hsync_pin: 39
-    vsync_pin: 41
-    pclk_pin: 0
-    pclk_frequency: 12MHz
-    data_pins:
-      red:
-        - 45        #r1
-        - 48        #r2
-        - 47        #r3
-        - 21        #r4
-        - 14        #r5
-      green:
-        - 5         #g0
-        - 6         #g1
-        - 7         #g2
-        - 15        #g3
-        - 16        #g4
-        - 4         #g5
-      blue:
-        - 8         #b1
-        - 3         #b2
-        - 46        #b3
-        - 9         #b4
-        - 1         #b5
-
-
-i2c:
-  sda: GPIO19
-  scl: GPIO20
-  scan: true
-
-touchscreen:
-  platform: gt911
-  id: main_touchscreen
-  on_touch:
-    - lambda: |-
-          ESP_LOGI("cal", "x=%d, y=%d, x_raw=%d, y_raw=%0d",
-              touch.x,
-              touch.y,
-              touch.x_raw,
-              touch.y_raw
-              );
-
+# LVGL & UI Configuration
 http_request:
   verify_ssl: False
 
 online_image:
-  #  - url: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png"
-  #- url: "http://homeassistant.local:8123/local/test1.png"
   - url: "http://homeassistant.local:8123/local/Paris800_480.png"
     format: png
     id: my_online_image
     type: RGB565
     resize: 800x480
     on_download_finished:
-      #  component.update: my_display
       lvgl.image.update:
         id: first_image
         src: my_online_image
+
 image:
   - file: bulb.png
     id: Paris_image
@@ -232,7 +234,6 @@ image:
 
 lvgl:
   buffer_size: 25%
-
   pages:
     - id: main_page
       widgets:
@@ -248,7 +249,7 @@ lvgl:
               height: 350
               width: 350
               scales:
-                - range_from: 00 # scale for the needle value
+                - range_from: 00
                   range_to: 1000
                   angle_range: 240
                   rotation: 150
@@ -264,7 +265,7 @@ lvgl:
                         color_start: 0x0000bd
                         color_end: 0xbd0000
                         width: 1
-                - range_from: 0 # scale for the value labels
+                - range_from: 0
                   range_to: 100
                   angle_range: 240
                   rotation: 150
@@ -289,14 +290,12 @@ lvgl:
                     text: "Inside Temp"
                     align: CENTER
                     y: 65
-
-
           - meter:
               align: RIGHT_MID
               height: 350
               width: 350
               scales:
-                - range_from: 00 # scale for the needle value
+                - range_from: 00
                   range_to: 1000
                   angle_range: 240
                   rotation: 150
@@ -312,7 +311,7 @@ lvgl:
                         color_start: 0x0000bd
                         color_end: 0xbd0000
                         width: 1
-                - range_from: 0 # scale for the value labels
+                - range_from: 0
                   range_to: 100
                   angle_range: 240
                   rotation: 150
@@ -345,7 +344,7 @@ lvgl:
               height: 350
               width: 350
               scales:
-                - range_from: 00 # scale for the needle value
+                - range_from: 00
                   range_to: 1000
                   angle_range: 240
                   rotation: 150
@@ -361,7 +360,7 @@ lvgl:
                         color_start: 0x0000bd
                         color_end: 0xbd0000
                         width: 1
-                - range_from: 0 # scale for the value labels
+                - range_from: 0
                   range_to: 100
                   angle_range: 240
                   rotation: 150
@@ -386,14 +385,12 @@ lvgl:
                     text: "Outside Temp"
                     align: CENTER
                     y: 65
-
-
           - meter:
               align: RIGHT_MID
               height: 350
               width: 350
               scales:
-                - range_from: 00 # scale for the needle value
+                - range_from: 00
                   range_to: 1000
                   angle_range: 240
                   rotation: 150
@@ -409,7 +406,7 @@ lvgl:
                         color_start: 0x0000bd
                         color_end: 0xbd0000
                         width: 1
-                - range_from: 0 # scale for the value labels
+                - range_from: 0
                   range_to: 100
                   angle_range: 240
                   rotation: 150
@@ -439,7 +436,7 @@ lvgl:
       width: 100%
       bg_color: Black
       widgets:
-        - obj: # clock container
+        - obj:
             height: 470
             width: 470
             align: CENTER
@@ -447,16 +444,15 @@ lvgl:
             border_width: 0
             bg_color: Black
             widgets:
-              - meter: # clock face
+              - meter:
                   height: 95%
                   width: 95%
                   align: CENTER
                   bg_color: White
-#                  bg_opa: TRANSP
                   border_width: 0
                   text_color: 0x000000
                   scales:
-                    - range_from: 0 # minutes scale
+                    - range_from: 0
                       range_to: 60
                       angle_range: 360
                       rotation: 270
@@ -472,7 +468,7 @@ lvgl:
                             color: black
                             r_mod: -4
                             value: 0
-                    - range_from: 1 # hours scale for labels
+                    - range_from: 1
                       range_to: 12
                       angle_range: 330
                       rotation: 300
@@ -486,7 +482,7 @@ lvgl:
                           length: 10
                           color: black
                           label_gap: 12
-                    - range_from: 0 # hi-res hours scale for hand
+                    - range_from: 0
                       range_to: 720
                       angle_range: 360
                       rotation: 270
@@ -499,8 +495,6 @@ lvgl:
                             color: black
                             r_mod: -40
                             value: 0
-
-                    # Second hand
                     - range_from: 0
                       range_to: 60
                       angle_range: 360
@@ -511,7 +505,6 @@ lvgl:
                             width: 2
                             color: Red
                             r_mod: -10
-
               - label:
                   styles: date_style
                   id: day_label
@@ -520,7 +513,6 @@ lvgl:
                   id: date_label
                   styles: date_style
                   y: 50
-
 
   top_layer:
     widgets:
@@ -560,7 +552,6 @@ lvgl:
                   then:
                     lvgl.page.next:
 
-
   theme:
     button:
       bg_color: 0x2F8CD8
@@ -570,10 +561,10 @@ lvgl:
       border_color: 0x0077b3
       border_width: 1
       text_color: 0xFFFFFF
-      pressed: # set some button colors to be different in pressed state
+      pressed:
         bg_color: 0x006699
         bg_grad_color: 0x00334d
-      checked: # set some button colors to be different in checked state
+      checked:
         bg_color: 0x1d5f96
         bg_grad_color: 0x03324A
         text_color: 0xfff300
@@ -583,7 +574,7 @@ lvgl:
       border_width: 0
       text_color: 0xFFFFFF
       pad_all: 0
-      items: # set all your buttonmatrix buttons to use your custom defined styles and font
+      items:
         bg_color: 0x2F8CD8
         bg_grad_color: 0x005782
         bg_grad_dir: VER
@@ -646,7 +637,7 @@ lvgl:
           text_color: 0xFFFFFF
           width: 100%
           height: 30
-        - id: date_style      # choose an ID for your definition
+        - id: date_style
           text_font: unscii_16
           align: center
           text_color: 0x000000
@@ -654,6 +645,7 @@ lvgl:
           radius: 4
           pad_all: 2
 
+# Sensors
 text_sensor:
   - platform: version
     id: esphome_version
@@ -674,7 +666,6 @@ sensor:
     name: "FiveInch WiFi Signal Sensor"
     update_interval: 60s
 
-
   - platform: homeassistant
     id: inside_temperature
     entity_id: sensor.devtest2_bme280_temperature_devtest2
@@ -687,7 +678,6 @@ sensor:
           text:
             format: "%.1f°F"
             args: [ 'x' ]
-
 
   - platform: homeassistant 
     id: inside_humidity
@@ -702,7 +692,6 @@ sensor:
             format: "%.1f%%"
             args: [ 'x' ]
 
-
   - platform: homeassistant
     id: outside_temperature
     entity_id: sensor.tempcurrent
@@ -716,7 +705,6 @@ sensor:
             format: "%.1f°F"
             args: [ 'x' ]
 
-
   - platform: homeassistant 
     id: outside_humidity
     entity_id: sensor.humiditycurrent
@@ -729,49 +717,38 @@ sensor:
           text:
             format: "%.1f%%" 
             args: [ 'x' ]
-              
 
   - platform: homeassistant
     id: barometer_pressure
     entity_id: sensor.pressurecurrent
-
   - platform: homeassistant
     id: dewpoint
     entity_id: sensor.dewpointcurrent
-
   - platform: homeassistant
     id: cloudcover
     entity_id: sensor.cloudcovercurrent
-
   - platform: homeassistant
     id: forecastd1
     entity_id: sensor.weather_forecast_d1
 
-# Restart & Safe Mode Buttons
+# Buttons
 button:
   - platform: restart
     name: "Restart Device"
-
   - platform: safe_mode
     name: "Restart in Safe Mode"
-
   - platform: template
     name: "Next Page"
     on_press:
       then:
         - lvgl.page.next
-
-
   - platform: template
     name: "Previous Page"
     on_press:
       then:
         - lvgl.page.previous
-      
 
 web_server:
   port: 80
   include_internal: True
   version: 3
-  
-captive_portal:
