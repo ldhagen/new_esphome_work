@@ -1,6 +1,6 @@
 # ==============================================================================
 #  PROJECT: 5-Inch TFT Display (ESP32-S3) - STABILITY & UI OVERHAUL
-#  DATE:    February 2026
+#  DATE:    February 19, 2026
 #  STATUS:  STABLE (ESPHome 2026.1.5 / ESP-IDF 5.5.1)
 # ==============================================================================
 #
@@ -17,6 +17,8 @@
 #     - Navigation: Standardized to 40px height with Material Symbols Outlined.
 #     - Typography: Integrated Montserrat 20 for weather and unscii_16 for date/time.
 #     - New Pages: Added Barometer and Weather Forecast pages synced from HA.
+#     - Clock: Fixed analog clock rendering (360 angle, 270 rotation) and proportional 
+#       hands to identically match the 7-inch display UI.
 #     - Buffer: Retained 25% LVGL buffer for display stability vs 10% on Waveshare.
 # ==============================================================================
 
@@ -360,29 +362,36 @@ lvgl:
     - id: clock_page
       bg_color: Black
       widgets:
-        - obj:
-            height: 470
-            width: 470
+        - meter:
+            id: analog_clock
+            height: 400
+            width: 400
             align: CENTER
-            bg_color: Black
+            bg_color: White
+            border_width: 0
+            outline_width: 0
+            scales:
+              - range_from: 0
+                range_to: 60
+                angle_range: 360
+                rotation: 270
+                ticks:
+                  width: 4
+                  count: 12
+                  length: 15
+                  color: 0x000000
+                indicators:
+                  - line: {id: minute_hand, width: 4, color: 0x000000, r_mod: -15}
+                  - line: {id: second_hand, width: 2, color: 0xFF0000, r_mod: -5}
+              - range_from: 0
+                range_to: 720
+                angle_range: 360
+                rotation: 270
+                indicators:
+                  - line: {id: hour_hand, width: 6, color: 0x000000, r_mod: -45}
             widgets:
-              - meter:
-                  height: 95%
-                  width: 95%
-                  align: CENTER
-                  bg_color: White
-                  scales:
-                    - range_from: 0
-                      range_to: 60
-                      indicators:
-                        - line: {id: minute_hand, width: 5, color: black}
-                        - line: {id: second_hand, width: 2, color: red}
-                    - range_from: 0
-                      range_to: 720
-                      indicators:
-                        - line: {id: hour_hand, width: 5, color: black}
-              - label: {id: day_label, styles: date_style, y: -50}
-              - label: {id: date_label, styles: date_style, y: 50}
+              - label: {id: day_label, styles: date_style, align: CENTER, y: -60}
+              - label: {id: date_label, styles: date_style, align: CENTER, y: 60}
 
     - id: weather_page
       bg_color: Silver
