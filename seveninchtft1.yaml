@@ -16,8 +16,9 @@
 #     from the local ESPHome web UI.
 #  4. Dynamic Boot Image: Starts on 'main_page' with a local bulb image, 
 #     then downloads and hot-swaps to a high-res Paris photo upon WiFi connect.
-#  5. UI Updates: Symmetrical 5-button navigation bar matching the Waveshare 
-#     layout. Cleaned up analog clock with 12-hour ticks and proportional hands.
+#  5. UI Updates: Reverted to a seamless, edge-to-edge LVGL `buttonmatrix` for 
+#     the bottom navigation bar to perfectly match the Waveshare 7-inch style.
+#     Cleaned up analog clock with 12-hour ticks and proportional hands.
 # ==============================================================================
 
 esphome:
@@ -186,6 +187,7 @@ lvgl:
   color_depth: 16
   style_definitions:
     - id: header_footer
+      text_font: icon_font
       bg_color: 0x2F8CD8
       bg_grad_color: 0x005782
       bg_grad_dir: VER
@@ -369,47 +371,28 @@ lvgl:
           width: 100%
           height: 45
           bg_color: 0x2F8CD8
-          bg_grad_color: 0x005782
-          bg_grad_dir: VER
           bg_opa: COVER
           border_width: 0
           pad_all: 0
           widgets:
-            - button:
+            - buttonmatrix:
                 align: CENTER
-                x: -320
-                width: 80
-                height: 45
-                widgets: [{label: {text: "\uE0F0", text_font: icon_font, align: CENTER}}]
-                on_press: {then: [light.turn_on: lcdbacklight]}
-            - button:
-                align: CENTER
-                x: -160
-                width: 80
-                height: 45
-                widgets: [{label: {text: "\uE5C4", text_font: icon_font, align: CENTER}}]
-                on_press: {then: [lvgl.page.previous]}
-            - button:
-                align: CENTER
-                x: 0
-                width: 80
-                height: 45
-                widgets: [{label: {text: "\uE88A", text_font: icon_font, align: CENTER}}]
-                on_press: {then: [lvgl.page.show: main_page]}
-            - button:
-                align: CENTER
-                x: 160
-                width: 80
-                height: 45
-                widgets: [{label: {text: "\uE8AC", text_font: icon_font, align: CENTER}}]
-                on_press: {then: [light.turn_off: lcdbacklight]}
-            - button:
-                align: CENTER
-                x: 320
-                width: 80
-                height: 45
-                widgets: [{label: {text: "\uE5C8", text_font: icon_font, align: CENTER}}]
-                on_press: {then: [lvgl.page.next]}
+                width: 100%
+                height: 100%
+                styles: header_footer
+                id: nav_bar
+                rows:
+                  - buttons:
+                    - text: "\uE0F0" 
+                      on_press: {then: [light.turn_on: lcdbacklight]}
+                    - text: "\uE5C4" 
+                      on_press: {then: [lvgl.page.previous]}
+                    - text: "\uE88A" 
+                      on_press: {then: [lvgl.page.show: main_page]}
+                    - text: "\uE8AC" 
+                      on_press: {then: [light.turn_off: lcdbacklight]}
+                    - text: "\uE5C8" 
+                      on_press: {then: [lvgl.page.next]}
 
 sensor:
   - platform: wifi_signal
