@@ -1,5 +1,6 @@
 # ==============================================================================
-#  ELECROW CROWPANEL 7.0" (ESP32-S3) - ESPHOME CONFIGURATION
+#  ELECROW CROWPANEL 7.0" (ESP32-S3) - FIXED UI SCALES & SENSORS
+#  DATE: February 24, 2026
 # ==============================================================================
 #  Hardware: Elecrow CrowPanel 7.0" HMI Display (ESP32-S3)
 #  ESPHome Version: 2026.1.5
@@ -16,9 +17,11 @@
 #     from the local ESPHome web UI.
 #  4. Dynamic Boot Image: Starts on 'main_page' with a local bulb image, 
 #     then downloads and hot-swaps to a high-res Paris photo upon WiFi connect.
-#  5. UI Updates: Reverted to a seamless, edge-to-edge LVGL `buttonmatrix` for 
-#     the bottom navigation bar to perfectly match the Waveshare 7-inch style.
-#     Cleaned up analog clock with 12-hour ticks and proportional hands.
+#  5. UI Updates: 
+#     - Navigation: Reverted to a seamless, edge-to-edge LVGL `buttonmatrix`.
+#     - Clock: Added 60 minor ticks and 12 major ticks for standard watch face.
+#     - Scales: Standardized temperature (0-120), humidity (0-100), and barometer (28-31)
+#       to use 1:1 human-readable increments. Removed x10 math from lambdas.
 # ==============================================================================
 
 esphome:
@@ -226,10 +229,11 @@ lvgl:
                 angle_range: 360
                 rotation: 270
                 ticks:
-                  width: 4
-                  count: 12
-                  length: 15
-                  color: 0x000000
+                  width: 2
+                  count: 60
+                  length: 10
+                  color: 0x555555
+                  major: {stride: 5, width: 4, length: 15, color: 0x000000}
                 indicators:
                   - line: {id: minute_hand, width: 4, color: 0x000000, r_mod: -15}
                   - line: {id: second_hand, width: 2, color: 0xFF0000, r_mod: -5}
@@ -251,12 +255,12 @@ lvgl:
             width: 350
             scales:
               - range_from: 0
-                range_to: 1000
+                range_to: 120
                 angle_range: 240
                 rotation: 150
                 ticks:
                   width: 2
-                  count: 31
+                  count: 61
                   length: 10
                   color: 0x000000
                   major: {stride: 5, width: 3, length: 15, color: 0xFF0000}
@@ -271,15 +275,15 @@ lvgl:
             width: 350
             scales:
               - range_from: 0
-                range_to: 1000
+                range_to: 100
                 angle_range: 240
                 rotation: 150
                 ticks:
                   width: 2
-                  count: 31
+                  count: 21
                   length: 10
                   color: 0x000000
-                  major: {stride: 5, width: 3, length: 15, color: 0xFF0000}
+                  major: {stride: 2, width: 3, length: 15, color: 0xFF0000}
                 indicators:
                   - line: {id: humidity_needle, width: 2, color: 0xFF0000}
             widgets:
@@ -294,12 +298,12 @@ lvgl:
             width: 350
             scales:
               - range_from: 0
-                range_to: 1000
+                range_to: 120
                 angle_range: 240
                 rotation: 150
                 ticks:
                   width: 2
-                  count: 31
+                  count: 61
                   length: 10
                   color: 0x000000
                   major: {stride: 5, width: 3, length: 15, color: 0xFF0000}
@@ -314,15 +318,15 @@ lvgl:
             width: 350
             scales:
               - range_from: 0
-                range_to: 1000
+                range_to: 100
                 angle_range: 240
                 rotation: 150
                 ticks:
                   width: 2
-                  count: 31
+                  count: 21
                   length: 10
                   color: 0x000000
-                  major: {stride: 5, width: 3, length: 15, color: 0xFF0000}
+                  major: {stride: 2, width: 3, length: 15, color: 0xFF0000}
                 indicators:
                   - line: {id: humidity_needle_2, width: 2, color: 0xFF0000}
             widgets:
@@ -337,8 +341,8 @@ lvgl:
             height: 400
             width: 400
             scales:
-              - range_from: 280
-                range_to: 310
+              - range_from: 28
+                range_to: 31
                 angle_range: 240
                 rotation: 150
                 ticks:
@@ -346,7 +350,7 @@ lvgl:
                   count: 31
                   length: 10
                   color: 0x0000FF
-                  major: {stride: 5, width: 3, length: 15, color: 0xFFFFFF}
+                  major: {stride: 10, width: 3, length: 15, color: 0xFFFFFF}
                 indicators:
                   - line: {id: barometer_needle, width: 4, color: 0xFF0000}
         - label: {id: barometer_text, styles: date_style, text: "inHg", align: CENTER, y: 85}
@@ -404,17 +408,17 @@ sensor:
   - platform: homeassistant
     id: inside_temperature
     name: "Inside Temperature"
-    entity_id: sensor.first_air_quality_monitor_temperature
+    entity_id: sensor.devtest2_bme280_temperature_devtest2
     on_value:
-      - lvgl.indicator.update: {id: temperature_needle, value: !lambda 'return x * 10;'}
+      - lvgl.indicator.update: {id: temperature_needle, value: !lambda 'return x;'}
       - lvgl.label.update: {id: temperature_text, text: {format: "%.1f°F", args: ['x']}}
 
   - platform: homeassistant
     id: inside_humidity
     name: "Inside Humidity"
-    entity_id: sensor.first_air_quality_monitor_humidity
+    entity_id: sensor.devtest2_bme280_humidity_devtest2
     on_value:
-      - lvgl.indicator.update: {id: humidity_needle, value: !lambda 'return x * 10;'}
+      - lvgl.indicator.update: {id: humidity_needle, value: !lambda 'return x;'}
       - lvgl.label.update: {id: humidity_text, text: {format: "%.1f%%", args: ['x']}}
 
   - platform: homeassistant
@@ -422,7 +426,7 @@ sensor:
     name: "Outside Temperature"
     entity_id: sensor.tempcurrent
     on_value:
-      - lvgl.indicator.update: {id: temperature_needle_2, value: !lambda 'return x * 10;'}
+      - lvgl.indicator.update: {id: temperature_needle_2, value: !lambda 'return x;'}
       - lvgl.label.update: {id: temperature_text_2, text: {format: "%.1f°F", args: ['x']}}
 
   - platform: homeassistant
@@ -430,7 +434,7 @@ sensor:
     name: "Outside Humidity"
     entity_id: sensor.humiditycurrent
     on_value:
-      - lvgl.indicator.update: {id: humidity_needle_2, value: !lambda 'return x * 10;'}
+      - lvgl.indicator.update: {id: humidity_needle_2, value: !lambda 'return x;'}
       - lvgl.label.update: {id: humidity_text_2, text: {format: "%.1f%%", args: ['x']}}
           
   - platform: homeassistant
@@ -438,7 +442,7 @@ sensor:
     name: "Barometric Pressure"
     entity_id: sensor.pressurecurrent
     on_value:   
-      - lvgl.indicator.update: {id: barometer_needle, value: !lambda 'return x * 10;'}
+      - lvgl.indicator.update: {id: barometer_needle, value: !lambda 'return x;'}
       - lvgl.label.update: {id: barometer_text, text: {format: "%.1finHG", args: ['x']}}
 
 text_sensor:
